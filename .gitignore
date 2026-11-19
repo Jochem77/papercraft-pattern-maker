@@ -1,0 +1,14 @@
+# 3D-modellen en projecten van gebruikers blijven lokaal
+*.stl
+*.STL
+*.obj
+*.glb
+*.gltf
+*.pmk
+*.pdo
+*.papercraft.json
+# overig
+node_modules/
+*.log
+.DS_Store
+Thumbs.db

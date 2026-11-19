@@ -1,0 +1,58 @@
+# Changelog
+
+All notable changes to Papercraft Pattern Maker are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [1.0.0-beta.1] - 2026-11-20
+
+First public beta. Please report problems via [GitHub Issues](https://github.com/Jochem77/papercraft-pattern-maker/issues).
+
+### Added
+
+- **Import** of STL (binary and ASCII), OBJ and GLB models. GLB materials and textures become the printed colors.
+- **Automatic unfolding** into pieces that are as large as possible:
+  - every piece fits on the paper, inside the margins;
+  - no piece overlaps itself;
+  - every glue tab has room, and tabs get narrower or more pointed only where space is tight;
+  - tiny leftover pieces are merged into their neighbours.
+- **Manual editing**:
+  - cut or join any edge, in the 3D view or in the pattern;
+  - move a glue tab to the other side of its edge;
+  - drag and rotate pieces;
+  - unlimited undo and redo.
+- **Tools**: *Select*, *Cut / join* and *Paint colors*. A selected piece is highlighted in 3D, and the 3D view turns towards a piece selected in the pattern.
+- **Colors**:
+  - paint faces;
+  - edit and add materials;
+  - fix single-triangle color errors;
+  - optionally cut along color borders and group pages per color.
+- **Nesting**: pieces are packed tightly on A4 or A3 pages, using their real shape and 24 rotations.
+- **Numbering**: matching edge numbers on edges that are glued together, plus a piece number in a circle (also shown in 3D). Piece numbers avoid overlapping the edge numbers.
+- **Fold lines**: mountain and valley folds in distinct line styles.
+- **PDF export** at true size (1:1). Every page carries a 50 mm check line.
+- **Cutting plotter export**: one SVG per page (ZIP), in millimetres, with layers *print*, *cut* (one closed outline per piece) and *score* or *perforate*.
+- **Silhouette Print & Cut**:
+  - Type 1 registration marks with configurable length, line thickness and inset;
+  - the mark settings are printed on every page;
+  - pieces stay out of the keep-clear zones.
+- **Model dimensions** as X/Y/Z in millimetres, shown in the 3D view.
+- **Settings dialog** with tabs, live previews of glue tabs and fonts, and a reset to defaults.
+- **Menu bar** and an icon toolbar with tooltips and keyboard shortcuts.
+- **English and Dutch** user interface.
+- **Projects**: the model and all edits are saved in a single `.papercraft.json` file.
+
+### Known issues
+
+- The 3D view needs an internet connection the first time, to load three.js from a CDN.
+- Mainly tested in Chrome and Edge on Windows. Firefox, Safari and touch devices are less tested.
+- Large models (more than about 5,000 triangles) can take a long time to unfold.
+- Edge numbers can overlap each other at very sharp corners.
+- OBJ files are assumed to be Y-up.
+- The Silhouette registration marks have been checked against Silhouette Studio's default settings only.
+
+[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.1...HEAD
+[1.0.0-beta.1]: https://github.com/Jochem77/papercraft-pattern-maker/releases/tag/v1.0.0-beta.1
