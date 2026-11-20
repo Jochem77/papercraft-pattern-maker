@@ -2792,7 +2792,7 @@ function pieceBody(p, mode, opt) {
     if (pn) {
       const C = T([d.numPos.x, d.numPos.y]);
       const rotA = screen ? ` transform="rotate(${fx(-p.rot)} ${fx(C[0])} ${fx(C[1])})"` : '';
-      s += `<g class="pnum"${rotA}><circle cx="${fx(C[0])}" cy="${fx(C[1])}" r="${fx(pn.r)}" fill="#fff" stroke="#222" stroke-width="${fx(pn.fs * 0.07)}"/><text x="${fx(C[0])}" y="${fx(C[1])}" font-size="${fx(pn.fs)}" font-family='${font().css}' font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#111">${pn.n}</text></g>`;
+      s += `<g class="pnum"${rotA}><circle cx="${fx(C[0])}" cy="${fx(C[1])}" r="${fx(pn.r)}" fill="#fff" stroke="#222" stroke-width="${fx(pn.fs * 0.07)}"/><text x="${fx(C[0])}" y="${fx(C[1] + pn.fs * 0.36)}" font-size="${fx(pn.fs)}" font-family='${font().css}' font-weight="bold" text-anchor="middle" fill="#111">${pn.n}</text></g>`;
     }
   }
   // nummers
@@ -2803,7 +2803,7 @@ function pieceBody(p, mode, opt) {
       const W = T([l.x, l.y]);
       const ang = screen ? upright(l.ang + p.rot) - p.rot : upright(l.ang + p.rot);
       const dark = !colors || l.tab || lum(l.col) > 140;
-      s += `<text x="${fx(W[0])}" y="${fx(W[1])}" font-size="${fx(l.fs)}" font-family='${font().css}' font-weight="${font().weight}" text-anchor="middle" dominant-baseline="central" fill="${dark ? '#222' : '#fff'}" transform="rotate(${fx(ang)} ${fx(W[0])} ${fx(W[1])})">${n}</text>`;
+      s += `<text x="${fx(W[0])}" y="${fx(W[1] + l.fs * 0.36)}" font-size="${fx(l.fs)}" font-family='${font().css}' font-weight="${font().weight}" text-anchor="middle" fill="${dark ? '#222' : '#fff'}" transform="rotate(${fx(ang)} ${fx(W[0])} ${fx(W[1])})">${n}</text>`;
     }
   }
   return s;

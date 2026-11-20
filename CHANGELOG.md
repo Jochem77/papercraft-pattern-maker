@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Edge and piece numbers in the cutting-plotter SVG were shifted in Silhouette Studio, which ignores `dominant-baseline`. The text is now positioned explicitly. The cut and score lines were not affected.
+
 ## [1.0.0-beta.2] - 2026-11-20
 
 ### Added
