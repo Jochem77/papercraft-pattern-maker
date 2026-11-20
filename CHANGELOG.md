@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta.2] - 2026-11-20
+
 ### Added
 
 - **Simplify detailed models**: a model with more than 2,000 triangles opens a dialog to reduce it to a number of triangles you choose (default 1,000), with a live preview in the 3D view. The shape and the borders between colors are kept. Also available later via *Model → Simplify model…*. Projects remember the setting.
@@ -63,5 +65,6 @@ First public beta. Please report problems via [GitHub Issues](https://github.com
 - OBJ files are assumed to be Y-up.
 - The Silhouette registration marks have been checked against Silhouette Studio's default settings only.
 
-[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.2...HEAD
+[1.0.0-beta.2]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/Jochem77/papercraft-pattern-maker/releases/tag/v1.0.0-beta.1
