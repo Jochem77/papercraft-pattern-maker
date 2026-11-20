@@ -16,7 +16,7 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
 
 ## Werkwijze
 
-1. **Openen**: kies een model, of sleep het in het venster. GLB-materialen worden de kleuren in het patroon.
+1. **Openen**: kies een model, of sleep het in het venster. GLB-materialen worden de kleuren in het patroon. Heeft het model meer dan 2.000 driehoeken, dan kun je het eerst vereenvoudigen; de 3D-weergave toont meteen het resultaat.
 2. **Automatisch knippen** gebeurt meteen. Het model wordt verdeeld in zo groot mogelijke stukken:
    - elk stuk past op het papier, binnen de marges;
    - er is geen overlap;
@@ -60,7 +60,7 @@ Onder **Help** (F1) staan alle bediening en sneltoetsen.
 
 - De 3D-weergave heeft de eerste keer internet nodig (three.js via een CDN).
 - Vooral getest in Chrome en Edge op Windows. Firefox, Safari en touchscreens zijn minder getest.
-- Grote modellen (meer dan zo'n 5.000 driehoeken) kunnen lang duren.
+- Een model met meer dan zo'n 5.000 driehoeken uitvouwen is traag en geeft veel kleine stukjes. Vereenvoudig het (Model → Model vereenvoudigen…) of maak een low-poly versie in een 3D-programma zoals Blender (*Decimate*-modifier) voor het mooiste resultaat.
 - Randnummers kunnen elkaar overlappen bij heel scherpe hoeken.
 - OBJ-bestanden worden als Y-omhoog gelezen.
 

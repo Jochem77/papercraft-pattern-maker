@@ -184,3 +184,24 @@ test('invalid input gives a clear error', () => {
   assert.throws(() => C.parseModel(new TextEncoder().encode('hello').buffer, 'x.stl'), /STL/);
   assert.throws(() => C.parseModel(new ArrayBuffer(20), 'x.glb'), /GLB/);
 });
+
+test('simplify: fewer triangles, still closed, colour borders kept, deterministic', () => {
+  const pos = icosphere(5); // 20480 triangles
+  const n = pos.length / 9;
+  const key = new Int32Array(n).map((_, t) => (pos[t * 9 + 2] + pos[t * 9 + 5] + pos[t * 9 + 8]) > 0 ? 1 : 0);
+  const r = C.simplifyMesh(pos, 600, key);
+  const m = C.buildMesh(r.pos);
+  assert.ok(m.F.length <= 600 && m.F.length > 500, `got ${m.F.length} triangles`);
+  assert.equal(m.E.filter(e => !e.m).length, 0, 'mesh stays closed');
+  assert.ok(signedVolume(m) > 0);
+  for (const v of m.V) assert.ok(Math.abs(Math.hypot(...v) - 1) < 0.03, 'shape kept');
+  // the border between the two materials stays on the equator
+  const orig = C.buildMesh(pos);
+  let bz0 = 0; for (const e of orig.E) if (key[orig.src[e.f[0]]] !== key[orig.src[e.f[1]]]) for (const v of e.v) bz0 = Math.max(bz0, Math.abs(orig.V[v][2]));
+  for (const e of m.E) if (key[r.src[m.src[e.f[0]]]] !== key[r.src[m.src[e.f[1]]]]) for (const v of e.v) assert.ok(Math.abs(m.V[v][2]) <= bz0 + 1e-3, `colour border moved: ${Math.abs(m.V[v][2])} > ${bz0}`);
+  // same input, same output (projects rebuild the simplified mesh when opened)
+  assert.deepEqual(C.simplifyMesh(pos, 600, key).pos, r.pos);
+  // and the result unfolds
+  const o = opts(m, 150);
+  checkUnfolding(m, C.autoPipeline(m, o), o);
+});

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Simplify detailed models**: a model with more than 2,000 triangles opens a dialog to reduce it to a number of triangles you choose (default 1,000), with a live preview in the 3D view. The shape and the borders between colors are kept. Also available later via *Model → Simplify model…*. Projects remember the setting.
+- A warning before unfolding a model with more than 10,000 triangles unchanged.
+
+### Changed
+
+- The status bar shows how many triangles the original model had when it was simplified.
+
 ## [1.0.0-beta.1] - 2026-11-20
 
 First public beta. Please report problems via [GitHub Issues](https://github.com/Jochem77/papercraft-pattern-maker/issues).

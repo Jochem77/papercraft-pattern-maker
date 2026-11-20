@@ -1094,8 +1094,178 @@ function nestLayout(items, W, H, o) {
   return { placements: out, pages: pages.length };
 }
 
+// ---------------------------------------------------------------- simplify (quadric edge collapse)
+// Reduces a triangle soup to about `target` triangles while keeping the shape (Garland & Heckbert).
+// key (optional, one value per triangle, e.g. the material): borders between different keys and
+// open edges are kept in place. Returns { pos, src }: src[t] is the original triangle that output
+// triangle t comes from (to carry over materials and texture coordinates). Deterministic.
+function simplifyMesh(pos, target, key) {
+  const n = Math.floor(pos.length / 9);
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n * 9; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
+  const diag = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1, qq = diag * 1e-6;
+  // weld vertices (same tolerance as buildMesh)
+  const X = [], Y = [], Z = [], vmap = new Map();
+  const vid = o => {
+    const k = Math.round(pos[o] / qq) + ',' + Math.round(pos[o + 1] / qq) + ',' + Math.round(pos[o + 2] / qq);
+    let i = vmap.get(k);
+    if (i === undefined) { i = X.length; X.push(pos[o]); Y.push(pos[o + 1]); Z.push(pos[o + 2]); vmap.set(k, i); }
+    return i;
+  };
+  const F = [], fsrc = [];
+  for (let t = 0; t < n; t++) {
+    const a = vid(t * 9), b = vid(t * 9 + 3), c = vid(t * 9 + 6);
+    if (a === b || b === c || a === c) continue;
+    F.push(a, b, c); fsrc.push(t);
+  }
+  const nf0 = fsrc.length, nv = X.length;
+  const alive = new Uint8Array(nf0).fill(1);
+  const vf = Array.from({ length: nv }, () => []);
+  for (let f = 0; f < nf0; f++) for (let k = 0; k < 3; k++) vf[F[3 * f + k]].push(f);
+  const Q = new Float64Array(nv * 10);
+  const addPlane = (v, a, b, c, d, w) => {
+    const o = v * 10;
+    Q[o] += w * a * a; Q[o + 1] += w * a * b; Q[o + 2] += w * a * c; Q[o + 3] += w * a * d;
+    Q[o + 4] += w * b * b; Q[o + 5] += w * b * c; Q[o + 6] += w * b * d;
+    Q[o + 7] += w * c * c; Q[o + 8] += w * c * d; Q[o + 9] += w * d * d;
+  };
+  const fnorm = (a, b, c, ax, ay, az) => { // unnormalized normal of triangle (a,b,c) with a moved to (ax,ay,az)
+    const ux = X[b] - ax, uy = Y[b] - ay, uz = Z[b] - az, wx = X[c] - ax, wy = Y[c] - ay, wz = Z[c] - az;
+    return [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx];
+  };
+  // face planes, weighted by area
+  for (let f = 0; f < nf0; f++) {
+    const a = F[3 * f], b = F[3 * f + 1], c = F[3 * f + 2];
+    const N = fnorm(a, b, c, X[a], Y[a], Z[a]), l = Math.hypot(...N);
+    if (l < 1e-30) continue;
+    const nx = N[0] / l, ny = N[1] / l, nz = N[2] / l, d = -(nx * X[a] + ny * Y[a] + nz * Z[a]);
+    for (const v of [a, b, c]) addPlane(v, nx, ny, nz, d, l / 2);
+  }
+  // borders (open edges, non-manifold edges, key changes): a steep plane through the edge,
+  // perpendicular to the face, so the border stays where it is
+  const emap = new Map();
+  for (let f = 0; f < nf0; f++) for (let k = 0; k < 3; k++) {
+    const a = F[3 * f + k], b = F[3 * f + (k + 1) % 3], id = a < b ? a * nv + b : b * nv + a;
+    let L = emap.get(id); if (!L) emap.set(id, L = []); L.push(f);
+  }
+  const BW = 1000;
+  for (const [id, L] of emap) {
+    const border = L.length !== 2 || (key && key[fsrc[L[0]]] !== key[fsrc[L[1]]]);
+    if (!border) continue;
+    const a = Math.floor(id / nv), b = id % nv;
+    const ex = X[b] - X[a], ey = Y[b] - Y[a], ez = Z[b] - Z[a], el2 = ex * ex + ey * ey + ez * ez;
+    for (const f of L) {
+      const N = fnorm(F[3 * f], F[3 * f + 1], F[3 * f + 2], X[F[3 * f]], Y[F[3 * f]], Z[F[3 * f]]);
+      let px = ey * N[2] - ez * N[1], py = ez * N[0] - ex * N[2], pz = ex * N[1] - ey * N[0];
+      const l = Math.hypot(px, py, pz); if (l < 1e-30) continue;
+      px /= l; py /= l; pz /= l;
+      const d = -(px * X[a] + py * Y[a] + pz * Z[a]);
+      addPlane(a, px, py, pz, d, BW * el2); addPlane(b, px, py, pz, d, BW * el2);
+    }
+  }
+  const err = (q, x, y, z) => q[0] * x * x + 2 * q[1] * x * y + 2 * q[2] * x * z + 2 * q[3] * x + q[4] * y * y + 2 * q[5] * y * z + 2 * q[6] * y + q[7] * z * z + 2 * q[8] * z + q[9];
+  const qs = new Float64Array(10);
+  // best position and cost for collapsing edge a-b
+  function evalEdge(a, b) {
+    for (let i = 0; i < 10; i++) qs[i] = Q[a * 10 + i] + Q[b * 10 + i];
+    const cand = [[X[a], Y[a], Z[a]], [X[b], Y[b], Z[b]], [(X[a] + X[b]) / 2, (Y[a] + Y[b]) / 2, (Z[a] + Z[b]) / 2]];
+    // optimal point: solve A p = -b (Cramer); only when well conditioned and close to the edge
+    const A = [qs[0], qs[1], qs[2], qs[1], qs[4], qs[5], qs[2], qs[5], qs[7]], B = [-qs[3], -qs[6], -qs[8]];
+    const det3 = M => M[0] * (M[4] * M[8] - M[5] * M[7]) - M[1] * (M[3] * M[8] - M[5] * M[6]) + M[2] * (M[3] * M[7] - M[4] * M[6]);
+    const D = det3(A), tr = qs[0] + qs[4] + qs[7];
+    if (Math.abs(D) > 1e-9 * tr * tr * tr) {
+      const p = [0, 1, 2].map(col => det3(A.map((v, i) => (i % 3 === col ? B[(i / 3) | 0] : v))) / D);
+      const el = Math.hypot(X[a] - X[b], Y[a] - Y[b], Z[a] - Z[b]);
+      if (Math.hypot(p[0] - cand[2][0], p[1] - cand[2][1], p[2] - cand[2][2]) < el) cand.push(p);
+    }
+    let best = null, bc = Infinity;
+    for (const p of cand) { const e = err(qs, p[0], p[1], p[2]); if (e < bc - 1e-18 * diag) { bc = e; best = p; } }
+    return [Math.max(0, bc), best];
+  }
+  // binary min-heap of edge candidates; stale entries are skipped by version stamps
+  const ver = new Uint32Array(nv), hc = [], ha = [], hb = [], hva = [], hvb = [], hp = [], heap = [];
+  const less = (i, j) => hc[i] < hc[j] || (hc[i] === hc[j] && i < j);
+  const push = (a, b) => {
+    const [c, p] = evalEdge(a, b), id = hc.length;
+    hc.push(c); ha.push(a); hb.push(b); hva.push(ver[a]); hvb.push(ver[b]); hp.push(p);
+    let i = heap.length; heap.push(id);
+    while (i > 0) { const pa = (i - 1) >> 1; if (!less(heap[i], heap[pa])) break; [heap[i], heap[pa]] = [heap[pa], heap[i]]; i = pa; }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last; let i = 0;
+      for (;;) { const l = 2 * i + 1, r = l + 1; let s = i; if (l < heap.length && less(heap[l], heap[s])) s = l; if (r < heap.length && less(heap[r], heap[s])) s = r; if (s === i) break; [heap[i], heap[s]] = [heap[s], heap[i]]; i = s; }
+    }
+    return top;
+  };
+  const liveFaces = v => { const L = vf[v].filter(f => alive[f] && (F[3 * f] === v || F[3 * f + 1] === v || F[3 * f + 2] === v)); vf[v] = L; return L; };
+  const neighbours = v => { const s = new Set(); for (const f of liveFaces(v)) for (let k = 0; k < 3; k++) if (F[3 * f + k] !== v) s.add(F[3 * f + k]); return s; };
+  for (const id of emap.keys()) { const a = Math.floor(id / nv), b = id % nv; push(a, b); }
+
+  let nf = nf0, rounds = 0;
+  target = Math.max(4, Math.round(target));
+  while (nf > target) {
+    if (!heap.length) {
+      // edges rejected earlier may be valid now: a few fresh rounds when the queue runs dry
+      if (rounds++ >= 3) break;
+      const seen = new Set();
+      for (let f = 0; f < nf0; f++) if (alive[f]) for (let k = 0; k < 3; k++) {
+        const u = F[3 * f + k], w = F[3 * f + (k + 1) % 3], id = u < w ? u * nv + w : w * nv + u;
+        if (!seen.has(id)) { seen.add(id); push(Math.min(u, w), Math.max(u, w)); }
+      }
+      if (!heap.length) break;
+      continue;
+    }
+    const h = pop(), a = ha[h], b = hb[h];
+    if (hva[h] !== ver[a] || hvb[h] !== ver[b]) continue;
+    const p = hp[h];
+    const fa = liveFaces(a), fb = liveFaces(b);
+    const shared = fa.filter(f => fb.includes(f));
+    if (!shared.length) continue;
+    // link condition: the only common neighbours are the opposite corners of the shared faces
+    const na = neighbours(a), nb = neighbours(b);
+    let common = 0; for (const v of na) if (v !== b && nb.has(v)) common++;
+    if (common !== shared.length) continue;
+    // no face may flip or become a sliver
+    let ok = true;
+    for (const [v, L] of [[a, fa], [b, fb]]) {
+      for (const f of L) {
+        if (shared.includes(f)) continue;
+        const k = F[3 * f] === v ? 0 : F[3 * f + 1] === v ? 1 : 2;
+        const o1 = F[3 * f + (k + 1) % 3], o2 = F[3 * f + (k + 2) % 3];
+        const N0 = fnorm(v, o1, o2, X[v], Y[v], Z[v]), N1 = fnorm(v, o1, o2, p[0], p[1], p[2]);
+        const l0 = Math.hypot(...N0), l1 = Math.hypot(...N1);
+        if (l1 < 1e-12 * diag * diag || (N0[0] * N1[0] + N0[1] * N1[1] + N0[2] * N1[2]) < 0.2 * l0 * l1) { ok = false; break; }
+        // sliver check: smallest angle may not collapse completely
+        const e1 = Math.hypot(X[o1] - p[0], Y[o1] - p[1], Z[o1] - p[2]), e2 = Math.hypot(X[o2] - p[0], Y[o2] - p[1], Z[o2] - p[2]), e3 = Math.hypot(X[o1] - X[o2], Y[o1] - Y[o2], Z[o1] - Z[o2]);
+        const lmax = Math.max(e1, e2, e3);
+        if (l1 < 0.02 * lmax * lmax) { ok = false; break; }
+      }
+      if (!ok) break;
+    }
+    if (!ok) continue;
+    // collapse b into a
+    for (const f of shared) { alive[f] = 0; nf--; }
+    for (const f of fb) if (alive[f]) { for (let k = 0; k < 3; k++) if (F[3 * f + k] === b) F[3 * f + k] = a; vf[a].push(f); }
+    vf[b] = [];
+    X[a] = p[0]; Y[a] = p[1]; Z[a] = p[2];
+    for (let i = 0; i < 10; i++) Q[a * 10 + i] += Q[b * 10 + i];
+    ver[a]++; ver[b]++;
+    for (const v of neighbours(a)) push(a, v);
+  }
+  const out = new Float32Array(nf * 9), src = new Int32Array(nf);
+  let t = 0;
+  for (let f = 0; f < nf0; f++) {
+    if (!alive[f]) continue;
+    for (let k = 0; k < 3; k++) { const v = F[3 * f + k]; out[t * 9 + k * 3] = X[v]; out[t * 9 + k * 3 + 1] = Y[v]; out[t * 9 + k * 3 + 2] = Z[v]; }
+    src[t++] = fsrc[f];
+  }
+  return { pos: out, src };
+}
+
 const api = {
-  nestLayout,
+  nestLayout, simplifyMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
   parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,

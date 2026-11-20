@@ -27,6 +27,7 @@ Runs entirely in your browser: no installation, no account, and your models neve
   - paint faces in a different color or material;
   - fix single-triangle color errors in one click;
   - optionally cut along color borders and group pages per color, for colored paper.
+- **Detailed models**: models with more than 2,000 triangles can be simplified on import, with a live 3D preview. The shape and color borders are kept.
 - **Nesting**: pieces are packed tightly, using their real shape and 24 rotations, to save paper.
 - **Numbering**: matching numbers on edges that are glued together, plus a piece number in a circle (also shown in 3D).
 - **Fold lines**: mountain and valley folds drawn with different line styles.
@@ -40,7 +41,7 @@ Runs entirely in your browser: no installation, no account, and your models neve
 ## Usage
 
 1. Open **`index.html`** in a modern browser (Chrome, Edge, Firefox or Safari). An internet connection is needed once, to load [three.js](https://threejs.org) from a CDN.
-2. **Open** a model (File → Open model, or Ctrl+O). It is unfolded automatically.
+2. **Open** a model (File → Open model, or Ctrl+O). A model with more than 2,000 triangles can be simplified first, with a live preview. It is then unfolded automatically.
 3. Adjust it with the tools in the toolbar (hover over an icon to see its name):
    - **Select** (S): click a piece to select it, drag to move it, rotate with Q / E.
    - **Cut / join** (K): click near an edge to cut or join it.
@@ -61,7 +62,7 @@ The **Help** menu (F1) in the app lists all controls and keyboard shortcuts.
 
 - The 3D view needs an internet connection the first time, to load three.js from a CDN.
 - Mainly tested in Chrome and Edge on Windows. Firefox, Safari and touch devices are less tested.
-- Large models (more than about 5,000 triangles) can take a long time to unfold.
+- Unfolding a model with more than about 5,000 triangles is slow and gives many small pieces. Simplify it (Model → Simplify model…) or make a low-poly version in a 3D program such as Blender (*Decimate* modifier) for the best result.
 - Edge numbers can overlap each other at very sharp corners.
 - OBJ files are assumed to be Y-up.
 

@@ -162,6 +162,15 @@ dialog kbd{background:#f3f4f6;border:1px solid var(--line);border-radius:4px;pad
 #sheet #hl line{stroke:#f59e0b;stroke-width:5px;stroke-linecap:round;opacity:.9;pointer-events:none}
 #printArea{display:none}
 .menubar .beta{font-size:10px;font-weight:700;letter-spacing:.06em;color:#b45309;background:#fef3c7;border:1px solid #fcd34d;border-radius:5px;padding:1px 5px;margin-left:2px}
+dialog.simp{margin:auto 28px auto auto;width:400px;max-width:calc(100vw - 32px)}
+dialog.simp::backdrop{background:rgba(15,23,42,.08)}
+.simp .muted{color:var(--muted);font-size:12.5px}
+.simp-row{display:flex;align-items:center;gap:10px;margin:14px 0 6px}
+.simp-row input[type=range]{flex:1}
+.simp-row input[type=number]{width:84px}
+.simp-warn{color:#b45309;font-size:12.5px;min-height:0}
+.simp-warn:empty{display:none}
+.simp-btns{display:flex;gap:8px;margin-top:14px}
 dialog.about{text-align:center;max-width:420px;padding:26px 30px}
 .about-logo{width:56px;height:56px;margin:0 auto 8px;color:#2563eb}
 .about h2{margin:0 0 2px}
@@ -1293,8 +1302,178 @@ function nestLayout(items, W, H, o) {
   return { placements: out, pages: pages.length };
 }
 
+// ---------------------------------------------------------------- simplify (quadric edge collapse)
+// Reduces a triangle soup to about `target` triangles while keeping the shape (Garland & Heckbert).
+// key (optional, one value per triangle, e.g. the material): borders between different keys and
+// open edges are kept in place. Returns { pos, src }: src[t] is the original triangle that output
+// triangle t comes from (to carry over materials and texture coordinates). Deterministic.
+function simplifyMesh(pos, target, key) {
+  const n = Math.floor(pos.length / 9);
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n * 9; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
+  const diag = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1, qq = diag * 1e-6;
+  // weld vertices (same tolerance as buildMesh)
+  const X = [], Y = [], Z = [], vmap = new Map();
+  const vid = o => {
+    const k = Math.round(pos[o] / qq) + ',' + Math.round(pos[o + 1] / qq) + ',' + Math.round(pos[o + 2] / qq);
+    let i = vmap.get(k);
+    if (i === undefined) { i = X.length; X.push(pos[o]); Y.push(pos[o + 1]); Z.push(pos[o + 2]); vmap.set(k, i); }
+    return i;
+  };
+  const F = [], fsrc = [];
+  for (let t = 0; t < n; t++) {
+    const a = vid(t * 9), b = vid(t * 9 + 3), c = vid(t * 9 + 6);
+    if (a === b || b === c || a === c) continue;
+    F.push(a, b, c); fsrc.push(t);
+  }
+  const nf0 = fsrc.length, nv = X.length;
+  const alive = new Uint8Array(nf0).fill(1);
+  const vf = Array.from({ length: nv }, () => []);
+  for (let f = 0; f < nf0; f++) for (let k = 0; k < 3; k++) vf[F[3 * f + k]].push(f);
+  const Q = new Float64Array(nv * 10);
+  const addPlane = (v, a, b, c, d, w) => {
+    const o = v * 10;
+    Q[o] += w * a * a; Q[o + 1] += w * a * b; Q[o + 2] += w * a * c; Q[o + 3] += w * a * d;
+    Q[o + 4] += w * b * b; Q[o + 5] += w * b * c; Q[o + 6] += w * b * d;
+    Q[o + 7] += w * c * c; Q[o + 8] += w * c * d; Q[o + 9] += w * d * d;
+  };
+  const fnorm = (a, b, c, ax, ay, az) => { // unnormalized normal of triangle (a,b,c) with a moved to (ax,ay,az)
+    const ux = X[b] - ax, uy = Y[b] - ay, uz = Z[b] - az, wx = X[c] - ax, wy = Y[c] - ay, wz = Z[c] - az;
+    return [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx];
+  };
+  // face planes, weighted by area
+  for (let f = 0; f < nf0; f++) {
+    const a = F[3 * f], b = F[3 * f + 1], c = F[3 * f + 2];
+    const N = fnorm(a, b, c, X[a], Y[a], Z[a]), l = Math.hypot(...N);
+    if (l < 1e-30) continue;
+    const nx = N[0] / l, ny = N[1] / l, nz = N[2] / l, d = -(nx * X[a] + ny * Y[a] + nz * Z[a]);
+    for (const v of [a, b, c]) addPlane(v, nx, ny, nz, d, l / 2);
+  }
+  // borders (open edges, non-manifold edges, key changes): a steep plane through the edge,
+  // perpendicular to the face, so the border stays where it is
+  const emap = new Map();
+  for (let f = 0; f < nf0; f++) for (let k = 0; k < 3; k++) {
+    const a = F[3 * f + k], b = F[3 * f + (k + 1) % 3], id = a < b ? a * nv + b : b * nv + a;
+    let L = emap.get(id); if (!L) emap.set(id, L = []); L.push(f);
+  }
+  const BW = 1000;
+  for (const [id, L] of emap) {
+    const border = L.length !== 2 || (key && key[fsrc[L[0]]] !== key[fsrc[L[1]]]);
+    if (!border) continue;
+    const a = Math.floor(id / nv), b = id % nv;
+    const ex = X[b] - X[a], ey = Y[b] - Y[a], ez = Z[b] - Z[a], el2 = ex * ex + ey * ey + ez * ez;
+    for (const f of L) {
+      const N = fnorm(F[3 * f], F[3 * f + 1], F[3 * f + 2], X[F[3 * f]], Y[F[3 * f]], Z[F[3 * f]]);
+      let px = ey * N[2] - ez * N[1], py = ez * N[0] - ex * N[2], pz = ex * N[1] - ey * N[0];
+      const l = Math.hypot(px, py, pz); if (l < 1e-30) continue;
+      px /= l; py /= l; pz /= l;
+      const d = -(px * X[a] + py * Y[a] + pz * Z[a]);
+      addPlane(a, px, py, pz, d, BW * el2); addPlane(b, px, py, pz, d, BW * el2);
+    }
+  }
+  const err = (q, x, y, z) => q[0] * x * x + 2 * q[1] * x * y + 2 * q[2] * x * z + 2 * q[3] * x + q[4] * y * y + 2 * q[5] * y * z + 2 * q[6] * y + q[7] * z * z + 2 * q[8] * z + q[9];
+  const qs = new Float64Array(10);
+  // best position and cost for collapsing edge a-b
+  function evalEdge(a, b) {
+    for (let i = 0; i < 10; i++) qs[i] = Q[a * 10 + i] + Q[b * 10 + i];
+    const cand = [[X[a], Y[a], Z[a]], [X[b], Y[b], Z[b]], [(X[a] + X[b]) / 2, (Y[a] + Y[b]) / 2, (Z[a] + Z[b]) / 2]];
+    // optimal point: solve A p = -b (Cramer); only when well conditioned and close to the edge
+    const A = [qs[0], qs[1], qs[2], qs[1], qs[4], qs[5], qs[2], qs[5], qs[7]], B = [-qs[3], -qs[6], -qs[8]];
+    const det3 = M => M[0] * (M[4] * M[8] - M[5] * M[7]) - M[1] * (M[3] * M[8] - M[5] * M[6]) + M[2] * (M[3] * M[7] - M[4] * M[6]);
+    const D = det3(A), tr = qs[0] + qs[4] + qs[7];
+    if (Math.abs(D) > 1e-9 * tr * tr * tr) {
+      const p = [0, 1, 2].map(col => det3(A.map((v, i) => (i % 3 === col ? B[(i / 3) | 0] : v))) / D);
+      const el = Math.hypot(X[a] - X[b], Y[a] - Y[b], Z[a] - Z[b]);
+      if (Math.hypot(p[0] - cand[2][0], p[1] - cand[2][1], p[2] - cand[2][2]) < el) cand.push(p);
+    }
+    let best = null, bc = Infinity;
+    for (const p of cand) { const e = err(qs, p[0], p[1], p[2]); if (e < bc - 1e-18 * diag) { bc = e; best = p; } }
+    return [Math.max(0, bc), best];
+  }
+  // binary min-heap of edge candidates; stale entries are skipped by version stamps
+  const ver = new Uint32Array(nv), hc = [], ha = [], hb = [], hva = [], hvb = [], hp = [], heap = [];
+  const less = (i, j) => hc[i] < hc[j] || (hc[i] === hc[j] && i < j);
+  const push = (a, b) => {
+    const [c, p] = evalEdge(a, b), id = hc.length;
+    hc.push(c); ha.push(a); hb.push(b); hva.push(ver[a]); hvb.push(ver[b]); hp.push(p);
+    let i = heap.length; heap.push(id);
+    while (i > 0) { const pa = (i - 1) >> 1; if (!less(heap[i], heap[pa])) break; [heap[i], heap[pa]] = [heap[pa], heap[i]]; i = pa; }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last; let i = 0;
+      for (;;) { const l = 2 * i + 1, r = l + 1; let s = i; if (l < heap.length && less(heap[l], heap[s])) s = l; if (r < heap.length && less(heap[r], heap[s])) s = r; if (s === i) break; [heap[i], heap[s]] = [heap[s], heap[i]]; i = s; }
+    }
+    return top;
+  };
+  const liveFaces = v => { const L = vf[v].filter(f => alive[f] && (F[3 * f] === v || F[3 * f + 1] === v || F[3 * f + 2] === v)); vf[v] = L; return L; };
+  const neighbours = v => { const s = new Set(); for (const f of liveFaces(v)) for (let k = 0; k < 3; k++) if (F[3 * f + k] !== v) s.add(F[3 * f + k]); return s; };
+  for (const id of emap.keys()) { const a = Math.floor(id / nv), b = id % nv; push(a, b); }
+
+  let nf = nf0, rounds = 0;
+  target = Math.max(4, Math.round(target));
+  while (nf > target) {
+    if (!heap.length) {
+      // edges rejected earlier may be valid now: a few fresh rounds when the queue runs dry
+      if (rounds++ >= 3) break;
+      const seen = new Set();
+      for (let f = 0; f < nf0; f++) if (alive[f]) for (let k = 0; k < 3; k++) {
+        const u = F[3 * f + k], w = F[3 * f + (k + 1) % 3], id = u < w ? u * nv + w : w * nv + u;
+        if (!seen.has(id)) { seen.add(id); push(Math.min(u, w), Math.max(u, w)); }
+      }
+      if (!heap.length) break;
+      continue;
+    }
+    const h = pop(), a = ha[h], b = hb[h];
+    if (hva[h] !== ver[a] || hvb[h] !== ver[b]) continue;
+    const p = hp[h];
+    const fa = liveFaces(a), fb = liveFaces(b);
+    const shared = fa.filter(f => fb.includes(f));
+    if (!shared.length) continue;
+    // link condition: the only common neighbours are the opposite corners of the shared faces
+    const na = neighbours(a), nb = neighbours(b);
+    let common = 0; for (const v of na) if (v !== b && nb.has(v)) common++;
+    if (common !== shared.length) continue;
+    // no face may flip or become a sliver
+    let ok = true;
+    for (const [v, L] of [[a, fa], [b, fb]]) {
+      for (const f of L) {
+        if (shared.includes(f)) continue;
+        const k = F[3 * f] === v ? 0 : F[3 * f + 1] === v ? 1 : 2;
+        const o1 = F[3 * f + (k + 1) % 3], o2 = F[3 * f + (k + 2) % 3];
+        const N0 = fnorm(v, o1, o2, X[v], Y[v], Z[v]), N1 = fnorm(v, o1, o2, p[0], p[1], p[2]);
+        const l0 = Math.hypot(...N0), l1 = Math.hypot(...N1);
+        if (l1 < 1e-12 * diag * diag || (N0[0] * N1[0] + N0[1] * N1[1] + N0[2] * N1[2]) < 0.2 * l0 * l1) { ok = false; break; }
+        // sliver check: smallest angle may not collapse completely
+        const e1 = Math.hypot(X[o1] - p[0], Y[o1] - p[1], Z[o1] - p[2]), e2 = Math.hypot(X[o2] - p[0], Y[o2] - p[1], Z[o2] - p[2]), e3 = Math.hypot(X[o1] - X[o2], Y[o1] - Y[o2], Z[o1] - Z[o2]);
+        const lmax = Math.max(e1, e2, e3);
+        if (l1 < 0.02 * lmax * lmax) { ok = false; break; }
+      }
+      if (!ok) break;
+    }
+    if (!ok) continue;
+    // collapse b into a
+    for (const f of shared) { alive[f] = 0; nf--; }
+    for (const f of fb) if (alive[f]) { for (let k = 0; k < 3; k++) if (F[3 * f + k] === b) F[3 * f + k] = a; vf[a].push(f); }
+    vf[b] = [];
+    X[a] = p[0]; Y[a] = p[1]; Z[a] = p[2];
+    for (let i = 0; i < 10; i++) Q[a * 10 + i] += Q[b * 10 + i];
+    ver[a]++; ver[b]++;
+    for (const v of neighbours(a)) push(a, v);
+  }
+  const out = new Float32Array(nf * 9), src = new Int32Array(nf);
+  let t = 0;
+  for (let f = 0; f < nf0; f++) {
+    if (!alive[f]) continue;
+    for (let k = 0; k < 3; k++) { const v = F[3 * f + k]; out[t * 9 + k * 3] = X[v]; out[t * 9 + k * 3 + 1] = Y[v]; out[t * 9 + k * 3 + 2] = Z[v]; }
+    src[t++] = fsrc[f];
+  }
+  return { pos: out, src };
+}
+
 const api = {
-  nestLayout,
+  nestLayout, simplifyMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
   parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,
@@ -1339,6 +1518,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       <button class="mi" data-cmd="auto" data-need="model"><span class="ck"></span><span data-i18n>Unfold automatically</span></button>
       <button class="mi" data-cmd="layout" data-need="model"><span class="ck"></span><span data-i18n>Rearrange pieces on pages</span></button>
       <div class="msep"></div>
+      <button class="mi" data-cmd="simplify" data-need="model"><span class="ck"></span><span data-i18n>Simplify model…</span></button>
       <button class="mi" data-cmd="fixTiny" data-need="model"><span class="ck"></span><span data-i18n>Fix tiny color islands</span></button>
       <div class="msep"></div>
       <button class="mi" data-cmd="set:model"><span class="ck"></span><span data-i18n>Dimensions…</span></button>
@@ -1454,6 +1634,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   <p class="lic">© 2026 Jochem Steenbakkers · <span data-i18n>Free software under the GNU General Public License v3.0 or later.</span></p>
   <p style="margin-bottom:0"><button class="primary" onclick="this.closest('dialog').close()" data-i18n>Close</button></p>
 </dialog>
+<dialog id="simpDlg" class="simp" aria-label="Simplify model">
+  <h2 data-i18n>Simplify model</h2>
+  <p id="simpInfo"></p>
+  <p class="muted" data-i18n>Papercraft works best with about 100 to 1,500 triangles: larger triangles are easier to cut, fold and glue. The shape and the color borders are kept as well as possible.</p>
+  <div class="simp-row"><input type="range" id="simpRange" min="0" max="1000" step="1"><input type="number" id="simpNum" min="4" step="10"><span class="muted" data-i18n>triangles</span></div>
+  <div id="simpStat" class="muted"></div>
+  <p id="simpWarn" class="simp-warn"></p>
+  <div class="simp-btns"><button id="simpKeep" data-i18n>Use original</button><span style="flex:1"></span><button id="simpCancel" data-i18n>Cancel</button><button id="simpOk" class="primary" data-i18n>Simplify</button></div>
+</dialog>
 <dialog id="help">
   <div class="l-en">
   <h2>How does it work?</h2>
@@ -1472,6 +1661,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     <li>Choose <b>Paint colors</b>; pick a color in the panel at the top left of the 3D view</li>
     <li>Click or drag over faces to paint them; rotate with the <b>right</b> mouse button</li>
     <li><b>Fix tiny color islands</b>: single triangles with a different color get the color of their neighbours</li>
+    <li><b>Simplify model</b> (menu Model): reduce a detailed model to fewer, larger triangles. Models with more than 2,000 triangles ask this when you open them.</li>
     <li>Then use <b>Unfold automatically</b> to recalculate</li>
   </ul>
   <h4>Pattern (right)</h4>
@@ -1511,6 +1701,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     <li>Kies <b>Kleuren</b>; in het paneel linksboven in de 3D-weergave kies je een kleur</li>
     <li>Klik of sleep over vlakken om ze te kleuren; draaien gaat dan met de <b>rechter</b> muisknop</li>
     <li><b>Mini-vlakjes herstellen</b>: losse driehoekjes met een afwijkende kleur krijgen de kleur van hun buren</li>
+    <li><b>Model vereenvoudigen</b> (menu Model): maak een gedetailleerd model eenvoudiger, met minder en grotere driehoeken. Bij modellen met meer dan 2.000 driehoeken wordt dit bij het openen gevraagd.</li>
     <li>Daarna <b>Automatisch knippen</b> om opnieuw te berekenen</li>
   </ul>
   <h4>Patroon (rechts)</h4>
@@ -1636,6 +1827,14 @@ const NL = {
   'Turn low-poly 3D models into printable papercraft patterns.': 'Maakt van low-poly 3D-modellen printbare bouwplaten van papier.',
   'Source code on GitHub': 'Broncode op GitHub', 'Free software under the GNU General Public License v3.0 or later.': 'Vrije software onder de GNU General Public License v3.0 of later.',
   'Version {v}': 'Versie {v}', 'Beta version: please report problems via Help → Report a problem': 'Bètaversie: meld problemen via Help → Report a problem',
+  'Simplify model…': 'Model vereenvoudigen…', 'Simplify model': 'Model vereenvoudigen', 'Simplify': 'Vereenvoudigen', 'Use original': 'Origineel gebruiken', 'triangles': 'driehoeken',
+  'Papercraft works best with about 100 to 1,500 triangles: larger triangles are easier to cut, fold and glue. The shape and the color borders are kept as well as possible.': 'Een papiermodel werkt het best met ongeveer 100 tot 1.500 driehoeken: grotere driehoeken zijn makkelijker te knippen, vouwen en plakken. De vorm en de kleurgrenzen blijven zo goed mogelijk behouden.',
+  'This model has {n} triangles.': 'Dit model heeft {n} driehoeken.',
+  'Unfolding the original can take several minutes and gives hundreds of tiny pieces.': 'Het origineel uitvouwen kan enkele minuten duren en geeft honderden kleine stukjes.',
+  'Your cuts, moved pieces and painted colors will be reset.': 'Je knippen, verplaatste stukken en geverfde kleuren worden teruggezet.',
+  'Preview in the 3D view: {t} triangles': 'Voorbeeld in de 3D-weergave: {t} driehoeken',
+  'This model is already simple enough.': 'Dit model is al eenvoudig genoeg.',
+  ' · simplified from {n} triangles': ' · vereenvoudigd van {n} driehoeken',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -1928,20 +2127,111 @@ async function openFile(file) {
   } catch (err) { console.error(err); toast(tr('Could not open file: ') + err.message, 5000); busy(false); }
 }
 async function loadModelBuffer(buf, name, proj) {
-  const data = Core.parseModel(buf, name);
+  const full = Core.parseModel(buf, name);
+  const n = Core.buildMesh(full.pos).F.length;
+  let target = proj ? (proj.simplify || 0) : 0;
+  if (!proj && n > SIMPLIFY_ABOVE) target = await askSimplify(full, n, 0, false);
   S.fileB64 = bufToB64(buf);
-  await loadModel(data, name, proj);
+  S.full = full; S.fullCount = n; S.simplify = target;
+  await loadModel(target ? simplifiedData(full, target) : full, name, proj);
+}
+
+// ---------------------------------------------------------------- vereenvoudigen (modellen met veel driehoeken)
+const SIMPLIFY_ABOVE = 2000, SLOW_ABOVE = 10000;
+const fmtN = n => n.toLocaleString(S.set.lang === 'nl' ? 'nl-NL' : 'en-US');
+function simplifiedData(full, target) {
+  const r = Core.simplifyMesh(full.pos, target, full.faceMat || null);
+  const d = { ...full, pos: r.pos };
+  if (full.faceMat) d.faceMat = Array.from(r.src, t => full.faceMat[t]);
+  if (full.faceUV) {
+    const uv = new Float32Array(r.src.length * 2);
+    r.src.forEach((t, i) => { uv[2 * i] = full.faceUV[2 * t]; uv[2 * i + 1] = full.faceUV[2 * t + 1]; });
+    d.faceUV = uv;
+  }
+  return d;
+}
+// Dialog with a slider; the 3D view shows a live preview. Resolves to the target (0 = original)
+// or null (cancelled, only from the menu).
+function askSimplify(full, n, cur, fromMenu) {
+  return new Promise(resolve => {
+    const dlg = $('simpDlg'), rng = $('simpRange'), num = $('simpNum');
+    const lo = Math.min(100, n), hi = Math.max(lo + 1, Math.min(n, 20000));
+    const toT = x => Math.max(lo, Math.round(Math.exp(Math.log(lo) + (Math.log(hi) - Math.log(lo)) * x / 1000) / 10) * 10);
+    const toX = t => Math.round(1000 * (Math.log(t) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)));
+    const old = { mesh: S.mesh, cp: S.cp, maxDim: S.maxDim, scale: S.scale };
+    let t = cur || Math.min(1000, Math.round(n / 20) * 10), timer = 0, shown = -1;
+    $('simpInfo').textContent = tr('This model has {n} triangles.', { n: fmtN(n) });
+    const warn = [];
+    if (n > SLOW_ABOVE) warn.push(tr('Unfolding the original can take several minutes and gives hundreds of tiny pieces.'));
+    if (fromMenu) warn.push(tr('Your cuts, moved pieces and painted colors will be reset.'));
+    $('simpWarn').textContent = warn.join(' ');
+    $('simpCancel').hidden = !fromMenu;
+    $('empty').style.display = 'none';
+    const preview = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (shown === t) return; shown = t;
+        const d = simplifiedData(full, t), m = Core.buildMesh(d.pos, S.set.flatDeg);
+        S.mesh = m; S.cp = null; S.maxDim = Math.max(...m.size); S.scale = S.set.size / S.maxDim;
+        setup3D();
+        if (d.materials && d.faceMat) {
+          const col = meshObj.geometry.attributes.color, c = new THREE.Color();
+          m.src.forEach((tt, f) => {
+            const mc = (d.materials[d.faceMat[tt]] || { color: [220, 220, 220] }).color;
+            c.setRGB(mc[0] / 255, mc[1] / 255, mc[2] / 255, THREE.SRGBColorSpace);
+            for (let k = 0; k < 3; k++) col.setXYZ(f * 3 + k, c.r, c.g, c.b);
+          });
+          col.needsUpdate = true;
+        }
+        req3();
+        $('simpStat').textContent = tr('Preview in the 3D view: {t} triangles', { t: fmtN(m.F.length) });
+      }, 120);
+    };
+    const set = (v, fromRange) => {
+      t = Math.max(Math.min(lo, 4), Math.min(n, Math.round(v) || lo));
+      if (!fromRange) rng.value = toX(Math.max(lo, t));
+      num.value = t; preview();
+    };
+    rng.oninput = () => set(toT(+rng.value), true);
+    num.onchange = () => set(+num.value);
+    const finish = v => {
+      clearTimeout(timer); dlg.close();
+      rng.oninput = num.onchange = dlg.oncancel = null;
+      if (fromMenu && (v === null || v === cur)) {
+        Object.assign(S, old); setup3D(); refresh(); v = null;
+      }
+      resolve(v);
+    };
+    $('simpOk').onclick = () => finish(t);
+    $('simpKeep').onclick = () => finish(0);
+    $('simpCancel').onclick = () => finish(null);
+    dlg.oncancel = e => { e.preventDefault(); if (fromMenu) finish(null); };
+    num.max = n;
+    set(t);
+    dlg.showModal();
+  });
+}
+async function openSimplify() {
+  if (!S.full) return;
+  if (S.fullCount <= 150) return toast(tr('This model is already simple enough.'));
+  const v = await askSimplify(S.full, S.fullCount, S.simplify, true);
+  if (v === null) return;
+  S.simplify = v;
+  await loadModel(v ? simplifiedData(S.full, v) : S.full, S.name, null);
 }
 async function loadProject(p) {
   if (!p || p.app !== 'papercraft') throw new Error(tr('Not a papercraft project'));
   S.set = { ...DEF, ...p.set }; syncSide(); saveSettings();
   await loadModelBuffer(b64ToBuf(p.file), p.name, p);
 }
+function projectData() {
+  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
+    paint: S.faceMat && S.faceColor ? { materials: S.model.materials, faceMat: S.faceMat, faceColor: S.faceColor } : null };
+  return p;
+}
 function saveProject() {
   if (!S.mesh) return;
-  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
-    paint: S.faceMat && S.faceColor ? { materials: S.model.materials, faceMat: S.faceMat, faceColor: S.faceColor } : null };
-  download(baseName() + '.papercraft.json', JSON.stringify(p), 'application/json');
+  download(baseName() + '.papercraft.json', JSON.stringify(projectData()), 'application/json');
 }
 
 async function faceColors(data, m) {
@@ -2451,7 +2741,7 @@ function pageInfo() {
 function updateStatus() {
   const m = S.mesh, ps = S.cp.pieces;
   const cuts = m.E.filter((e, i) => e.m && !S.joined[i]).length;
-  $('stats').textContent = tr('{f} triangles · {n} {pieces} · {p} {pages} · {c} glue edges · scale 1:{s} (model unit → mm)', { f: m.F.length, n: ps.length, pieces: pl(ps.length, 'piece', 'pieces'), p: S.pageCount, pages: pl(S.pageCount, 'page', 'pages'), c: cuts, s: fx(1 / S.scale) });
+  $('stats').textContent = tr('{f} triangles · {n} {pieces} · {p} {pages} · {c} glue edges · scale 1:{s} (model unit → mm)', { f: m.F.length, n: ps.length, pieces: pl(ps.length, 'piece', 'pieces'), p: S.pageCount, pages: pl(S.pageCount, 'page', 'pages'), c: cuts, s: fx(1 / S.scale) }) + (S.simplify ? tr(' · simplified from {n} triangles', { n: fmtN(S.fullCount) }) : '');
   const w = [];
   const self = ps.filter(p => p.d.faces.some(f => f.bad)).length;
   const tabs = S.tl.conflicts.length;
@@ -3281,7 +3571,7 @@ function runCmd(c) {
     open: () => $('fModel').click(), load: () => $('fProj').click(), save: saveProject,
     pdf: exportPDF, plotter: exportPlotter, settings: () => openSettings(),
     undo, redo, rotL: () => rotateSel(-15), rotR: () => rotateSel(15), rot90: () => rotateSel(90), deselect: () => selectPiece(-1, true),
-    auto: () => $('bAuto').click(), layout: () => $('bLayout').click(), fixTiny: () => fixTinyColors(1),
+    auto: () => $('bAuto').click(), layout: () => $('bLayout').click(), fixTiny: () => fixTinyColors(1), simplify: openSimplify,
     help: () => $('help').showModal(), fit3, fit2: fitView,
     about: () => $('about').showModal(),
     releases: () => window.open(REPO_URL + '/releases', '_blank', 'noopener'),
@@ -3343,7 +3633,7 @@ setTool('select');
 const qp = new URLSearchParams(location.search).get('model');
 if (qp) fetch(qp).then(r => r.arrayBuffer()).then(b => loadModelBuffer(b, qp.split('/').pop(), null)).catch(e => toast(tr('Loading failed: ') + e.message));
 window.__S = S;
-window.__api = { setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting };
+window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting };
 </script>
 </body>
 </html>
