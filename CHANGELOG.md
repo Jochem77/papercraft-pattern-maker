@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Mirror the 3D view** (checkbox *Mirror* above the 3D view, or *View → Mirror 3D view*): shows the model as a mirror image, for example to compare it with a photo or the real model. Only the display changes; the pattern, pieces and numbers stay the same.
+
 ### Fixed
 
 - Edge and piece numbers in the cutting-plotter SVG were shifted in Silhouette Studio, which ignores `text-anchor` and `dominant-baseline`. Numbers near the page edge could even stick out past the registration marks, so the selection was wider than the marks. The text is now positioned explicitly. The cut and score lines were not affected.
