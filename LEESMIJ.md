@@ -25,6 +25,8 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
    Vind je het model lastig te bouwen? Zet dan onder **Instellingen → Automatisch knippen** de optie **Knippen bij scherpe vouwen** aan: scherpe hoeken worden dan een knip met plakstrook in plaats van een vouw. Met **Stukgrootte beperken** worden de stukken kleiner. Bij **Vorm van de stukken** kies je tussen *Groot* (zo min mogelijk stukken), *Compact* (standaard: geen lange armen of rafelige randen) en *Zeer compact*.
 
    **Effen (foto)karton?** Zet onder **Instellingen → Printen & PDF** de optie **Bedrukte kant is de binnenkant** aan. De nummers en lijnen komen dan aan de binnenkant en de buitenkant blijft schoon. Je print en snijdt nog steeds aan één kant; de stukken liggen gespiegeld op het papier. Kies bij **Snijplotter → Vouwlijnen** dan **Rillen + perforeren**: vouwen die naar de bedrukte kant toe buigen worden geperforeerd (groen in de SVG), de andere gerild (blauw).
+
+   **Zonder lijm?** Kies onder **Instellingen → Plakstrookjes → Soort** voor *Lip en gleuf*, *Tandjes* of *Insteeklippen*. Bij lip en gleuf duw je het pijlvormige lipje door het sneetje in het andere stuk; de schoudertjes houden het vast. Gebruik een strookbreedte van 8 mm of meer. Waar geen ruimte is voor een sneetje, komt een gewone plakstrook.
 3. Pas het aan met het gereedschap in de werkbalk (beweeg de muis over een pictogram voor de naam):
    - **Selecteren** (S): een stuk aanklikken, verslepen, draaien met Q/E (met Shift 90°).
    - **Knippen** (K): klik bij een rand om te knippen of te verbinden. Shift+klik zet de plakstrook aan de andere kant; Alt+klik knipt ook randen binnen een plat vlak.

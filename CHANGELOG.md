@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tabs without glue** (*Settings → Glue tabs → Type*): *tab and slot* (an arrow-shaped tab whose head pushes through a slit cut in the other piece), *teeth* (several small ones along long edges) or *tuck tabs* (rounded, tucked in under the other piece). The shapes stay inside the normal tab area, so the unfolding and layout do not change; where there is no room for a slit a normal glue tab is used. The slits are in the cut layer of the plotter SVG and drawn as cut lines in the PDF.
 - **Cut at sharp folds** (*Settings → Automatic unfolding*): folds sharper than a chosen angle (default 60°) become a cut with a glue tab, which is easier to build.
 - **Limit piece size** (*Settings → Automatic unfolding*): every piece fits in a square of a chosen size, for smaller pieces that are easier to fold and glue.
 - **Printed side is the inside** (*Settings → Printing & PDF*): for plain card, the numbers and lines go on the inside of the model and the outside stays clean. The pieces are mirrored on the paper and mountain and valley folds swap, so you still print and cut on one side only. The 3D view keeps showing the model the right way round.
