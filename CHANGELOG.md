@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Printed side is the inside** (*Settings → Printing & PDF*): for plain card, the numbers and lines go on the inside of the model and the outside stays clean. The pieces are mirrored on the paper and mountain and valley folds swap, so you still print and cut on one side only. The 3D view keeps showing the model the right way round.
 - **Score + perforate** (*Settings → Cutting plotter → Fold lines*): folds that bend away from the printed side are scored, folds that bend towards it are perforated (a score line on the inside of a fold folds badly). Both layers are in the SVG: score lines blue, perforation green, so Silhouette Studio can use different cut settings for each.
 - **Adjustable perforation**: length of the cuts and of the bridges (default 2 mm and 1 mm, was fixed 1.5 mm and 1.2 mm). The dashes are now centred on each fold line, with a bridge at both ends.
-- **Gaps between pieces in 3D** (checkbox *Gaps* above the 3D view, or *View → Gaps between pieces*): every piece shrinks a little along its cuts, so you can see at a glance where each piece ends.
+- **See the pieces in 3D** (list above the 3D view): *Pieces: gaps* shrinks every piece a little along its cuts; *Pieces: exploded* moves the pieces apart, with a slider for the distance. Only the display changes.
 - **Mirror the 3D view** (checkbox *Mirror* above the 3D view, or *View → Mirror 3D view*): shows the model as a mirror image, for example to compare it with a photo or the real model. Only the display changes; the pattern, pieces and numbers stay the same.
 
 ### Changed
