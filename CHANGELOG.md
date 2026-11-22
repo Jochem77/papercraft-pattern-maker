@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Settings are applied when you click Done**, all at once (the model is unfolded again at most once). Closing the panel with ✕, Esc or a click outside it discards the changes. *Defaults* only fills in the panel.
 - **Clearer fold lines**: valley folds are blue dashes and mountain folds are red dash-dot lines (were grey dashes and grey dots, which were hard to tell apart on paper). Also in the PDF and the plotter SVG print layer.
 
 ### Fixed

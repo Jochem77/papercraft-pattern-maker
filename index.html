@@ -1648,9 +1648,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
 <div id="printArea"></div>
 <div id="setBackdrop"></div>
 <dialog id="settingsDlg" aria-label="Settings">
-  <div class="dlg-head"><h2>⚙ <span data-i18n>Settings</span></h2><span class="sub" id="setSub"></span><button class="x" id="bSetClose" data-i18n-title="Close (Esc)">✕</button></div>
+  <div class="dlg-head"><h2>⚙ <span data-i18n>Settings</span></h2><span class="sub" id="setSub"></span><button class="x" id="bSetClose" data-i18n-title="Close without applying (Esc)">✕</button></div>
   <div class="dlg-body"><nav class="set-nav" id="setNav"></nav><div id="side"></div></div>
-  <div class="dlg-foot"><button id="bSetReset" data-i18n-title="Reset all settings to their defaults" data-i18n>Defaults</button><span class="live" data-i18n>Changes are applied immediately</span><button class="primary" id="bSetDone" data-i18n>Done</button></div>
+  <div class="dlg-foot"><button id="bSetReset" data-i18n-title="Reset all settings to their defaults" data-i18n>Defaults</button><span class="live" data-i18n>Changes are applied when you click Done</span><button class="primary" id="bSetDone" data-i18n>Done</button></div>
 </dialog>
 <dialog id="about" class="about">
   <div class="about-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20 12 4l9 16z"/><path d="M12 4v16"/><path d="M7.5 12h9"/></svg></div>
@@ -1897,8 +1897,8 @@ const NL = {
   'Colors in the 3D view': 'Kleuren in de 3D-weergave', 'Color: pieces': 'Kleur: stukken', 'Color: material': 'Kleur: materiaal', 'Numbers': 'Nummers', 'Fit': 'Passend',
   '🖌 Colors / materials': '🖌 Kleuren / materialen', 'cut': 'knip', 'fold': 'vouw', 'open edge': 'open rand', 'valley fold': 'dalvouw', 'mountain fold': 'bergvouw',
   'same numbers = glue together': 'gelijke nummers = aan elkaar', 'Open an STL, OBJ or GLB file': 'Open een STL-, OBJ- of GLB-bestand', 'or drop it here': 'of sleep het hierheen', 'Open model': 'Model openen',
-  'No model loaded': 'Geen model geladen', 'Cancel': 'Annuleren', 'Settings': 'Instellingen', 'Close (Esc)': 'Sluiten (Esc)', 'Close': 'Sluiten',
-  'Reset all settings to their defaults': 'Alle instellingen terug naar de standaardwaarden', 'Defaults': 'Standaardwaarden', 'Changes are applied immediately': 'Wijzigingen worden direct toegepast', 'Done': 'Klaar',
+  'No model loaded': 'Geen model geladen', 'Cancel': 'Annuleren', 'Settings': 'Instellingen', 'Close (Esc)': 'Sluiten (Esc)', 'Close without applying (Esc)': 'Sluiten zonder toe te passen (Esc)', 'Close': 'Sluiten',
+  'Reset all settings to their defaults': 'Alle instellingen terug naar de standaardwaarden', 'Defaults': 'Standaardwaarden', 'Changes are applied when you click Done': 'Wijzigingen worden toegepast als je op Klaar klikt', 'Done': 'Klaar',
   'Rotate selected piece (Q)': 'Draai geselecteerd stuk (Q)', 'Rotate selected piece (E)': 'Draai geselecteerd stuk (E)',
   '3D · click a piece to select it': '3D · klik op een stuk om het te selecteren', '✂ Click near an edge: cut ⇄ join · Shift: flip glue tab': '✂ Klik bij een rand: knippen ⇄ verbinden · Shift: strook omdraaien',
   '🖌 Click/drag = paint · right drag = rotate': '🖌 Klik/sleep = kleuren · rechts slepen = draaien',
@@ -1968,7 +1968,7 @@ const NL = {
   'cutter': 'snijplotter', '{n} {pages} exported (mm, layers: print / cut / fold)': '{n} {pages} geëxporteerd (mm, lagen: print / snijden / vouwen)',
   'Unfolding automatically replaces your own edits (you can undo this). Continue?': 'Automatisch knippen vervangt je eigen aanpassingen (je kunt dit ongedaan maken). Doorgaan?',
   'Arranging pieces…': 'Stukken indelen…', 'Reset all settings to their defaults?': 'Alle instellingen terugzetten naar de standaardwaarden?',
-  'Defaults restored (the model size stays the same)': 'Standaardwaarden hersteld (afmetingen van het model blijven gelijk)', 'Loading failed: ': 'Laden mislukt: '
+  'Defaults filled in (the model size stays the same). Click Done to apply them.': 'Standaardwaarden ingevuld (de afmetingen van het model blijven gelijk). Klik op Klaar om ze toe te passen.', 'Loading failed: ': 'Laden mislukt: '
 };
 const fx = n => (Math.round(n * 1000) / 1000).toString();
 
@@ -2061,13 +2061,12 @@ function buildSide() {
     if (el.dataset.dim !== undefined) {
       const i = +el.dataset.dim, v = parseFloat(el.value);
       if (!S.mesh || !(v > 0) || !(S.mesh.size[i] > 0)) { syncSide(); return; }
-      S.set.size = v / S.mesh.size[i] * S.maxDim; saveSettings(); syncSide(); applySetting('size'); return;
+      setDraft().size = v / S.mesh.size[i] * S.maxDim; syncSide(); return;
     }
     const k = el.dataset.k; if (!k) return;
     let v = el.type === 'checkbox' ? el.checked : el.type === 'number' ? parseFloat(el.value) : el.value;
     if (el.type === 'number') { if (!isFinite(v)) { syncSide(); return; } v = Math.min(+el.max, Math.max(+el.min, v)); el.value = v; }
-    if (k === 'pageCols') S.prevCols = pageCols();
-    S.set[k] = v; saveSettings(); syncSide(); applySetting(k);
+    setDraft()[k] = v; syncSide();
   });
   // live voorbeeld tijdens typen
   $('side').addEventListener('input', ev => { const k = ev.target.dataset.k; if (['tabH', 'tabAngle', 'fontFamily', 'fontSize', 'pieceNumSize'].includes(k)) drawPreviews(ev.target); });
@@ -2079,17 +2078,47 @@ function showTab(id) {
   document.querySelectorAll('#side [data-pane]').forEach(p => p.classList.toggle('on', p.dataset.pane === id));
   $('side').scrollTop = 0;
 }
+// The panel edits a draft; nothing changes until Done. Close (✕, Esc, click outside) discards it.
+let draft = null;
+const setDraft = () => draft || (draft = { ...S.set });
+const panelSet = () => draft || S.set;
 function openSettings(tab) {
   if (tab) showTab(tab);
+  if (!$('settingsDlg').open) draft = { ...S.set };
   syncSide();
   $('setSub').textContent = S.mesh ? S.name : '';
   $('setBackdrop').classList.add('show');
   if (!$('settingsDlg').open) $('settingsDlg').show();
 }
-function closeSettings() { $('settingsDlg').close(); $('setBackdrop').classList.remove('show'); }
+function closeSettings() { draft = null; syncSide(); $('settingsDlg').close(); $('setBackdrop').classList.remove('show'); }
+function settingsDone() {
+  const d = draft; draft = null;
+  $('settingsDlg').close(); $('setBackdrop').classList.remove('show');
+  if (!d) return;
+  const keys = Object.keys(d).filter(k => d[k] !== S.set[k]);
+  if (!keys.length) return;
+  if (keys.includes('pageCols')) S.prevCols = pageCols();
+  Object.assign(S.set, d); saveSettings(); syncSide();
+  applySettings(keys);
+}
+// Apply several changed settings at once: unfold again at most once.
+const RELAYOUT = ['size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
+async function applySettings(keys) {
+  if (keys.includes('lang')) applyLanguage();
+  if (!S.mesh) return;
+  if (keys.includes('printedInside')) await rebuildMeshSide();
+  const rest = keys.filter(k => k !== 'lang' && k !== 'printedInside');
+  if (!S.manual && rest.some(k => RELAYOUT.includes(k) || k.startsWith('sil'))) {
+    S.scale = S.set.size / S.maxDim;
+    Core.setFlat(S.mesh, S.set.flatDeg);
+    S.world = null;
+    return runAuto();
+  }
+  for (const k of rest) applySetting(k);
+}
 // voorbeelden: plakstrookje en lettertype
 function drawPreviews(live) {
-  const st = { ...S.set };
+  const st = { ...panelSet() };
   if (live && live.dataset.k) { const v = live.type === 'number' ? parseFloat(live.value) : live.value; if (live.type !== 'number' || isFinite(v)) st[live.dataset.k] = v; }
   const pt = $('prev-tab');
   if (pt) {
@@ -2121,17 +2150,18 @@ function drawPreviews(live) {
   }
 }
 function syncSide() {
+  const set = panelSet();
   for (const el of $('side').querySelectorAll('[data-dim]')) {
-    const i = +el.dataset.dim, d = S.mesh ? S.mesh.size[i] * S.set.size / S.maxDim : 0;
+    const i = +el.dataset.dim, d = S.mesh ? S.mesh.size[i] * set.size / S.maxDim : 0;
     el.disabled = !S.mesh || !(d > 0);
     el.value = S.mesh ? (Math.round(d * 10) / 10) : '';
   }
   for (const el of $('side').querySelectorAll('[data-k]')) {
-    const v = S.set[el.dataset.k];
+    const v = set[el.dataset.k];
     if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
   }
   for (const r of $('side').querySelectorAll('[data-dep]')) {
-    const off = !S.set[r.dataset.dep];
+    const off = !set[r.dataset.dep];
     r.classList.toggle('dis', off);
     r.querySelectorAll('input,select').forEach(i => i.disabled = off);
   }
@@ -3683,16 +3713,13 @@ function runCmd(c) {
 }
 $('bSettings').onclick = () => $('settingsDlg').open ? closeSettings() : openSettings();
 $('bSetClose').onclick = closeSettings;
-$('bSetDone').onclick = closeSettings;
+$('bSetDone').onclick = settingsDone;
 $('setBackdrop').onclick = closeSettings;
 $('bSetReset').onclick = () => {
-  if (!confirm(tr('Reset all settings to their defaults?'))) return;
-  const size = S.set.size;
-  const wasInside = !!S.set.printedInside;
-  S.set = { ...DEF, size, lang: S.set.lang }; saveSettings(); syncSide();
-  if (S.mesh && wasInside) { S.scale = S.set.size / S.maxDim; rebuildMeshSide().then(() => { if (!S.manual) runAuto(); }); }
-  else if (S.mesh) { S.scale = S.set.size / S.maxDim; Core.setFlat(S.mesh, S.set.flatDeg); if (!S.manual) runAuto(); else { S.world = null; refresh(); fitView(); warnRecut(); } }
-  toast(tr('Defaults restored (the model size stays the same)'));
+  const cur = setDraft();
+  draft = { ...DEF, size: cur.size, lang: cur.lang, mirror3d: S.set.mirror3d };
+  syncSide();
+  toast(tr('Defaults filled in (the model size stays the same). Click Done to apply them.'), 4000);
 };
 $('bFit2').onclick = fitView;
 $('bRotL').onclick = () => rotateSel(-15);
