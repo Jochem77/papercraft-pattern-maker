@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Cut at sharp folds** (*Settings → Automatic unfolding*): folds sharper than a chosen angle (default 60°) become a cut with a glue tab, which is easier to build.
 - **Limit piece size** (*Settings → Automatic unfolding*): every piece fits in a square of a chosen size, for smaller pieces that are easier to fold and glue.
+- **Printed side is the inside** (*Settings → Printing & PDF*): for plain card, the numbers and lines go on the inside of the model and the outside stays clean. The pieces are mirrored on the paper and mountain and valley folds swap, so you still print and cut on one side only. The 3D view keeps showing the model the right way round.
+- **Score + perforate** (*Settings → Cutting plotter → Fold lines*): folds that bend away from the printed side are scored, folds that bend towards it are perforated (a score line on the inside of a fold folds badly). Both layers are in the SVG: score lines blue, perforation green, so Silhouette Studio can use different cut settings for each.
+- **Adjustable perforation**: length of the cuts and of the bridges (default 2 mm and 1 mm, was fixed 1.5 mm and 1.2 mm). The dashes are now centred on each fold line, with a bridge at both ends.
 - **Mirror the 3D view** (checkbox *Mirror* above the 3D view, or *View → Mirror 3D view*): shows the model as a mirror image, for example to compare it with a photo or the real model. Only the display changes; the pattern, pieces and numbers stay the same.
 
 ### Changed

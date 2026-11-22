@@ -407,7 +407,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
   <h4>Printing &amp; cutting plotter</h4>
   <ul>
     <li><b>PDF</b>: every page is exactly A4/A3 in millimetres (1:1). Print at <i>Actual size / 100%</i> and measure the 50 mm check line in the margin</li>
-    <li><b>Cutting plotter (SVG)</b>: a ZIP with one SVG per page in millimetres, with layers <i>print</i> (colors, numbers), <i>cut</i> (closed outlines, red) and <i>score</i> or <i>perforate</i> (fold lines, blue)</li>
+    <li><b>Cutting plotter (SVG)</b>: a ZIP with one SVG per page in millimetres, with layers <i>print</i> (colors, numbers), <i>cut</i> (closed outlines, red) and <i>score</i> (fold lines, blue) and/or <i>perforate</i> (fold lines, green). In Silhouette Studio, choose the cut settings per line color: red = cut through, green = cut through (it is already dashed), blue = score lightly</li>
     <li><b>Silhouette Print &amp; Cut</b>: turn on <i>Registration marks (Type 1)</i> in Settings → Cutting plotter, and enter the same length, line thickness and inset in Silhouette Studio (Print &amp; Cut, Type 1). Print the PDF at 100%, open the SVG of the same page in Studio and let the machine read the marks</li>
   </ul>
   </div>
@@ -447,7 +447,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
   <h4>Printen &amp; snijplotter</h4>
   <ul>
     <li><b>PDF</b>: elke pagina is precies A4/A3 in millimeters (1:1). Print op <i>Werkelijke grootte / 100%</i> en meet de controlelijn van 50 mm in de marge na</li>
-    <li><b>Snijplotter (SVG)</b>: een ZIP met één SVG per pagina in millimeters, met lagen <i>print</i> (kleuren, nummers), <i>snijden</i> (gesloten contouren, rood) en <i>rillen</i> of <i>perforeren</i> (vouwlijnen, blauw)</li>
+    <li><b>Snijplotter (SVG)</b>: een ZIP met één SVG per pagina in millimeters, met lagen <i>print</i> (kleuren, nummers), <i>snijden</i> (gesloten contouren, rood) en <i>rillen</i> (vouwlijnen, blauw) en/of <i>perforeren</i> (vouwlijnen, groen). Kies in Silhouette Studio de snij-instellingen per lijnkleur: rood = doorsnijden, groen = doorsnijden (is al gestippeld), blauw = licht rillen</li>
     <li><b>Silhouette Print &amp; Cut</b>: zet bij Instellingen → Snijplotter <i>Registratiemarkeringen (Type 1)</i> aan en neem lengte, lijndikte en inzet over in Silhouette Studio (Printen &amp; snijden, Type 1). Print de PDF op 100%, open in Studio de SVG van dezelfde pagina en laat de machine de markeringen lezen</li>
   </ul>
   </div>
@@ -471,7 +471,7 @@ const DEF = {
   size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2,
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
   tabH: 6, tabAngle: 45, minTab: 60, cutColors: false, mergeIslands: false, groupColors: false, sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100,
-  lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true
+  lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1
 };
 const S = {
   set: { ...DEF }, model: null, fileB64: null, name: '', mesh: null, maxDim: 1, scale: 1,
@@ -569,6 +569,13 @@ const NL = {
   'Folds of this angle or more are cut. 0° = flat, 90° = the corner of a box. Lower = more cuts.': 'Vouwen van deze hoek of meer worden geknipt. 0° = plat, 90° = de hoek van een doos. Lager = meer knippen.',
   'Smaller pieces are easier to fold and glue, but there are more of them.': 'Kleinere stukken zijn makkelijker te vouwen en te plakken, maar het worden er meer.',
   'Every piece (with its glue tabs) fits in a square of this size.': 'Elk stuk (met plakstroken) past in een vierkant van deze grootte.',
+  'Printed side is the inside': 'Bedrukte kant is de binnenkant',
+  'For plain (photo) card: the numbers and lines end up on the inside of the model and the outside stays clean. The pieces are mirrored on the paper and mountain and valley folds swap; you still print and cut on one side only.': 'Voor effen (foto)karton: de nummers en lijnen komen aan de binnenkant van het model en de buitenkant blijft schoon. De stukken worden gespiegeld op het papier en berg- en dalvouwen wisselen om; je print en snijdt nog steeds maar aan één kant.',
+  'Score + perforate': 'Rillen + perforeren',
+  'Score + perforate: folds that bend away from the printed side are scored; folds that bend towards it are perforated, because a score line on the inside of a fold folds badly.': 'Rillen + perforeren: vouwen die van de bedrukte kant af buigen worden gerild; vouwen die er naartoe buigen worden geperforeerd, want een rillijn aan de binnenkant van een vouw vouwt slecht.',
+  'Perforation: cut': 'Perforatie: snede', 'Perforation: bridge': 'Perforatie: brug',
+  'Length of each cut of a perforated fold line.': 'Lengte van elke snede van een geperforeerde vouwlijn.',
+  'Uncut part between two cuts. Larger = stronger, but stiffer to fold. Photo card: about 1 mm.': 'Ongesneden stukje tussen twee sneden. Groter = sterker, maar stugger te vouwen. Fotokarton: ongeveer 1 mm.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -709,11 +716,14 @@ const TABS = [
     { k: 'pieceNumSize', label: 'Font size', type: 'number', unit: 'mm', min: 2, max: 20, step: 0.5, dep: 'pieceNums' }] },
   { id: 'print', icon: '🖨️', title: 'Printing & PDF', intro: 'What goes on the printed pages. The PDF is always true size (1:1).', items: [
     { k: 'printColors', label: 'Print colors', type: 'check', help: 'Off = only lines and numbers, for colored paper.' },
-    { k: 'foldPrint', label: 'Print fold lines', type: 'check', help: 'Blue dashes = valley fold, red dash-dot = mountain fold.' }],
+    { k: 'foldPrint', label: 'Print fold lines', type: 'check', help: 'Blue dashes = valley fold, red dash-dot = mountain fold.' },
+    { k: 'printedInside', label: 'Printed side is the inside', type: 'check', help: 'For plain (photo) card: the numbers and lines end up on the inside of the model and the outside stays clean. The pieces are mirrored on the paper and mountain and valley folds swap; you still print and cut on one side only.' }],
     note: 'Always print the PDF at <b>100% / actual size</b>. Every page has a 50 mm check line at the bottom.' },
   { id: 'plotter', icon: '🔪', title: 'Cutting plotter', intro: 'Settings for the cutting plotter export and Silhouette Print & Cut.', items: [
     { section: 'Cut file (SVG)' },
-    { k: 'foldMode', label: 'Fold lines', type: 'select', opts: { score: 'Score (own layer)', perf: 'Perforate (dashes)', none: 'Leave out' } },
+    { k: 'foldMode', label: 'Fold lines', type: 'select', opts: { score: 'Score (own layer)', perf: 'Perforate (dashes)', mixed: 'Score + perforate', none: 'Leave out' }, help: 'Score + perforate: folds that bend away from the printed side are scored; folds that bend towards it are perforated, because a score line on the inside of a fold folds badly.' },
+    { k: 'perfCut', label: 'Perforation: cut', type: 'number', unit: 'mm', min: 0.5, max: 10, step: 0.1, help: 'Length of each cut of a perforated fold line.' },
+    { k: 'perfGap', label: 'Perforation: bridge', type: 'number', unit: 'mm', min: 0.3, max: 5, step: 0.1, help: 'Uncut part between two cuts. Larger = stronger, but stiffer to fold. Photo card: about 1 mm.' },
     { section: 'Silhouette Print & Cut' },
     { k: 'silMarks', label: 'Registration marks (Type 1)', type: 'check', help: 'Black square top left and L-corners; pieces automatically stay out of the keep-clear zones.' },
     { k: 'silLen', label: 'Length', type: 'number', unit: 'mm', min: 5, max: 50, step: 0.01, dep: 'silMarks' },
@@ -834,6 +844,7 @@ function applySetting(k) {
   if (k === 'size') { S.scale = S.set.size / S.maxDim; S.world = null; if (autoAgain) return runAuto(); refresh(); fitView(); return; }
   if (k === 'flatDeg') { Core.setFlat(S.mesh, S.set.flatDeg); refresh(); return; }
   if (k === 'lang') { applyLanguage(); return; }
+  if (k === 'printedInside') { rebuildMeshSide(); return; }
   if (k === 'pieceGap') { S.world = null; refresh(); fitView(); return; }
   if (k.startsWith('sil')) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
   if (['paper', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
@@ -909,7 +920,7 @@ function askSimplify(full, n, cur, fromMenu) {
       clearTimeout(timer);
       timer = setTimeout(() => {
         if (shown === t) return; shown = t;
-        const d = simplifiedData(full, t), m = Core.buildMesh(d.pos, S.set.flatDeg);
+        const d = simplifiedData(full, t), m = Core.buildMesh(meshPos(d.pos), S.set.flatDeg);
         S.mesh = m; S.cp = null; S.maxDim = Math.max(...m.size); S.scale = S.set.size / S.maxDim;
         setup3D();
         if (d.materials && d.faceMat) {
@@ -1001,10 +1012,32 @@ async function faceColors(data, m) {
   });
 }
 
+// The pattern is unfolded from this mesh. With the printed side on the inside, the mesh is the
+// mirror image: its pieces, printed on top and folded with the print inwards, build the real model.
+// The 3D view mirrors it back (see MX), so the model on screen still looks the right way round.
+function meshPos(pos) {
+  const q = Float32Array.from(pos);
+  if (S.set.printedInside) for (let i = 0; i < q.length; i += 3) q[i] = -q[i];
+  return q;
+}
+// Rebuild the mesh after switching the printed side. The edge and face numbering stay the same
+// (edges are numbered before the faces are oriented), so cuts, glue tab sides and colors are kept.
+async function rebuildMeshSide() {
+  const old = S.mesh, keepE = old.E.map(e => e.v.join());
+  const m = Core.buildMesh(meshPos(S.model.pos), S.set.flatDeg);
+  const same = m.E.length === keepE.length && m.F.length === old.F.length && m.E.every((e, i) => e.v.join() === keepE[i]);
+  S.mesh = m; S.cp = null; S.world = null;
+  applyMirror3(); setup3D();
+  if (same) { refresh(); fitView(); } else { S.tabUser = new Int8Array(m.E.length).fill(-1); S.joined = new Uint8Array(m.E.length); S.manual = false; await runAuto(true); }
+}
+// Fold type as seen from the printed side
+const foldType = convex => (convex !== !!S.set.printedInside ? 'm' : 'v');
+
 async function loadModel(data, name, proj) {
-  const m = Core.buildMesh(data.pos, S.set.flatDeg);
+  const m = Core.buildMesh(meshPos(data.pos), S.set.flatDeg);
   if (!m.F.length) throw new Error(tr('No triangles found'));
   S.model = data; S.name = name; S.mesh = m;
+  applyMirror3();
   S.maxDim = Math.max(...m.size); S.scale = S.set.size / S.maxDim;
   syncSide();
   S.faceMat = data.faceMat ? m.src.map(t => data.faceMat[t]) : null;
@@ -1234,7 +1267,7 @@ function runAuto(initial) {
       if (initial) { S.joined = new Uint8Array(S.mesh.E.length); refresh(); fitView(); toast(tr('Cancelled: all edges cut')); }
       resolve();
     };
-    w.postMessage({ pos: S.model.pos.slice(), flatDeg: S.set.flatDeg, o, avoid });
+    w.postMessage({ pos: meshPos(S.model.pos), flatDeg: S.set.flatDeg, o, avoid });
   });
 }
 
@@ -1350,7 +1383,7 @@ function buildDrawings() {
         const e = m.FE[f][i], E = m.E[e], a = P[i], b = P[(i + 1) % 3];
         if (E.m && S.joined[e]) {
           const g = Core.otherFace(E, f);
-          if (f < g) { if (!E.flat) d.folds.push({ e, a, b, type: E.convex ? 'm' : 'v' }); d.hits.push({ e, a, b, flat: E.flat }); }
+          if (f < g) { if (!E.flat) d.folds.push({ e, a, b, type: foldType(E.convex) }); d.hits.push({ e, a, b, flat: E.flat }); }
         } else if (E.m) {
           d.hits.push({ e, a, b });
           const ux = (b[0] - a[0]) / E.len / S.scale, uy = (b[1] - a[1]) / E.len / S.scale, l = E.len * S.scale;
@@ -1359,7 +1392,7 @@ function buildDrawings() {
             const t = S.tl.tabs[e];
             d.tabs.push({ e, f, poly: t.poly, bad: t.bad });
             if (t.bad) d.bad = true;
-            d.folds.push({ e, a, b, type: 'm', tab: true });
+            d.folds.push({ e, a, b, type: foldType(true), tab: true });
             const fs = Math.min(st.fontSize, t.h * 0.7, l * 0.35);
             d.labels.push({ e, x: mx - uy * t.h / 2, y: my + ux * t.h / 2, ang, fs, col: [255, 255, 255], tab: true });
           } else {
@@ -1702,7 +1735,7 @@ function setHover(e) {
   const hi = $('hoverInfo');
   if (e < 0 || !S.mesh) { hi.textContent = ''; return; }
   const E = S.mesh.E[e];
-  const state = !E.m ? tr('open edge') : S.joined[e] ? (E.flat ? tr('flat (Alt+click to cut)') : tr('fold ({k})', { k: tr(E.convex ? 'mountain' : 'valley') })) : tr('cut · no. {n}', { n: S.num[e] });
+  const state = !E.m ? tr('open edge') : S.joined[e] ? (E.flat ? tr('flat (Alt+click to cut)') : tr('fold ({k})', { k: tr(foldType(E.convex) === 'm' ? 'mountain' : 'valley') })) : tr('cut · no. {n}', { n: S.num[e] });
   hi.textContent = tr('Edge: {s} · length {l} mm · angle {a}°', { s: state, l: fx(E.len * S.scale), a: Math.round(E.bend * 180 / Math.PI) });
 }
 function drawHover2D() {
@@ -1734,7 +1767,7 @@ const dl = new THREE.DirectionalLight(0xffffff, 1.6); dl.position.set(0.5, 1, 2)
 // All model objects live in model3. "Mirror" only flips this group on screen: the mesh, the
 // unfolding and the pattern stay exactly the same.
 const model3 = new THREE.Group(); scene.add(model3);
-const MX = () => (S.set.mirror3d ? -1 : 1);
+const MX = () => (S.set.mirror3d ? -1 : 1) * (S.set.printedInside ? -1 : 1);
 function applyMirror3() { model3.scale.x = MX(); model3.updateMatrixWorld(true); req3(); }
 let meshObj = null, foldObj = null, cutObj = null, hlObj = null;
 const cutMat = new LineMaterial({ color: 0xffffff, linewidth: 2, vertexColors: true, worldUnits: false });
@@ -2211,26 +2244,34 @@ function plotterSVG(pageIdx) {
   const [PW, PH] = pageDims(), [x0, y0] = pageOrigin(pageIdx);
   const pieces = S.cp.pieces.filter(p => p.page === pageIdx);
   const sh = q => fx(q[0] - x0) + ',' + fx(q[1] - y0);
-  let printL = '', cutL = '', foldL = '';
+  let printL = '', cutL = '', foldL = '', perfL = '';
+  const mode = S.set.foldMode, pc = Math.max(0.3, +S.set.perfCut || 2), pg = Math.max(0.2, +S.set.perfGap || 1);
+  // score lines blue, perforation green: Silhouette Studio chooses the cut settings per line color
+  const seg = (a, b, col = '#0000FF') => `<line x1="${fx(a[0] - x0)}" y1="${fx(a[1] - y0)}" x2="${fx(b[0] - x0)}" y2="${fx(b[1] - y0)}" stroke="${col}" stroke-width="0.25"/>`;
+  // dashes, centred on the line, with a bridge at both ends so the corners stay strong
+  const perf = (a, b) => {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, avail = L - 2 * pg;
+    if (avail < pc * 0.5) return '';
+    const n = Math.max(1, Math.floor((avail + pg) / (pc + pg))), cl = Math.min(pc, avail), used = n * cl + (n - 1) * pg;
+    let o = '', t = (L - used) / 2;
+    for (let i = 0; i < n; i++, t += cl + pg) o += seg([a[0] + ux * t, a[1] + uy * t], [a[0] + ux * (t + cl), a[1] + uy * (t + cl)], '#00A000');
+    return o;
+  };
   for (const p of pieces) {
     printL += pieceBody(p, 'world', { cut: false, folds: S.set.foldPrint, labels: true });
     for (const l of cutLoops(p)) cutL += `<path d="M${l.path.map(sh).join(' L')}${l.closed ? ' Z' : ''}" fill="none" stroke="#FF0000" stroke-width="0.25"/>`;
-    if (S.set.foldMode !== 'none') for (const f of foldSegs(p)) {
-      if (S.set.foldMode === 'score') foldL += `<line x1="${fx(f.a[0] - x0)}" y1="${fx(f.a[1] - y0)}" x2="${fx(f.b[0] - x0)}" y2="${fx(f.b[1] - y0)}" stroke="#0000FF" stroke-width="0.25"/>`;
-      else {
-        const L = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]), dash = 1.5, gap = 1.2, end = 1;
-        const ux = (f.b[0] - f.a[0]) / L, uy = (f.b[1] - f.a[1]) / L;
-        for (let t = end; t < L - end; t += dash + gap) {
-          const t2 = Math.min(t + dash, L - end);
-          foldL += `<line x1="${fx(f.a[0] + ux * t - x0)}" y1="${fx(f.a[1] + uy * t - y0)}" x2="${fx(f.a[0] + ux * t2 - x0)}" y2="${fx(f.a[1] + uy * t2 - y0)}" stroke="#0000FF" stroke-width="0.25"/>`;
-        }
-      }
+    // A score line works when the fold bends away from it (mountain fold seen from the printed
+    // side); a fold towards the score line is perforated in mode 'mixed'.
+    if (mode !== 'none') for (const f of foldSegs(p)) {
+      if (mode === 'score' || (mode === 'mixed' && f.type === 'm')) foldL += seg(f.a, f.b);
+      else perfL += perf(f.a, f.b);
     }
   }
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${PW}mm" height="${PH}mm" viewBox="0 0 ${PW} ${PH}">
 <g id="print" inkscape:groupmode="layer" inkscape:label="print" transform="translate(${-x0} ${-y0})">${printL}</g>
-<g id="${S.set.foldMode === 'perf' ? 'perforate' : 'score'}" inkscape:groupmode="layer" inkscape:label="${tr(S.set.foldMode === 'perf' ? 'perforate' : 'score')}">${foldL}</g>
+${mode === 'score' || mode === 'mixed' ? `<g id="score" inkscape:groupmode="layer" inkscape:label="${tr('score')}">${foldL}</g>` : ''}${mode === 'perf' || mode === 'mixed' ? `
+<g id="perforate" inkscape:groupmode="layer" inkscape:label="${tr('perforate')}">${perfL}</g>` : ''}
 <g id="cut" inkscape:groupmode="layer" inkscape:label="${tr('cut layer')}">${cutL}</g>${silMarkRects().length ? `
 <g id="registration" inkscape:groupmode="layer" inkscape:label="${tr('registration marks (do not cut)')}">${silMarkRects().map(r => `<rect x="${fx(r[0])}" y="${fx(r[1])}" width="${fx(r[2])}" height="${fx(r[3])}" fill="#000"/>`).join('')}</g>` : ''}
 </svg>`;
@@ -2347,8 +2388,10 @@ $('setBackdrop').onclick = closeSettings;
 $('bSetReset').onclick = () => {
   if (!confirm(tr('Reset all settings to their defaults?'))) return;
   const size = S.set.size;
+  const wasInside = !!S.set.printedInside;
   S.set = { ...DEF, size, lang: S.set.lang }; saveSettings(); syncSide();
-  if (S.mesh) { S.scale = S.set.size / S.maxDim; Core.setFlat(S.mesh, S.set.flatDeg); if (!S.manual) runAuto(); else { S.world = null; refresh(); fitView(); warnRecut(); } }
+  if (S.mesh && wasInside) { S.scale = S.set.size / S.maxDim; rebuildMeshSide().then(() => { if (!S.manual) runAuto(); }); }
+  else if (S.mesh) { S.scale = S.set.size / S.maxDim; Core.setFlat(S.mesh, S.set.flatDeg); if (!S.manual) runAuto(); else { S.world = null; refresh(); fitView(); warnRecut(); } }
   toast(tr('Defaults restored (the model size stays the same)'));
 };
 $('bFit2').onclick = fitView;
