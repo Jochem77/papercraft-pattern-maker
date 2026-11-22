@@ -1559,9 +1559,14 @@ function buildDrawings() {
               for (const [s0, s1] of iv) { if (s0 > t0) d.folds.push({ e, a: at(t0), b: at(s0), type: foldType(true), tab: true }); t0 = Math.max(t0, s1); }
               if (t0 < 1) d.folds.push({ e, a: at(t0), b, type: foldType(true), tab: true });
             } else d.cuts.push({ e, a, b });
-            const fs = Math.min(st.fontSize, inr * 1.05, l * 0.35);
-            const off = fs * 0.75;
-            d.labels.push({ e, x: mx + uy * off, y: my - ux * off, ang, fs, col: col || [255, 255, 255] });
+            if (t2) { // the number goes on the flap, so the face itself stays clean
+              const fs = Math.min(st.fontSize, t2.h * 0.6, l * 0.35);
+              d.labels.push({ e, x: mx - uy * t2.h * 0.55, y: my + ux * t2.h * 0.55, ang, fs, col: [255, 255, 255], tab: true });
+            } else {
+              const fs = Math.min(st.fontSize, inr * 1.05, l * 0.35);
+              const off = fs * 0.75;
+              d.labels.push({ e, x: mx + uy * off, y: my - ux * off, ang, fs, col: col || [255, 255, 255] });
+            }
           }
         } else {
           d.cuts.push({ e, a, b, open: true });
