@@ -28,7 +28,7 @@ Runs entirely in your browser: no installation, no account, and your models neve
   - fix single-triangle color errors in one click;
   - optionally cut along color borders and group pages per color, for colored paper.
 - **Easier to build**: compact pieces without long arms (adjustable), optionally cut at sharp folds (they get a glue tab instead), and limit the size of the pieces.
-- **No glue**: tab and flap (hidden inside), tab and slot, or teeth instead of glue tabs.
+- **No glue**: tab and flap, hooked together exactly at the seam, instead of glue tabs.
 - **Plain card**: put the printed side on the inside (the pieces are mirrored on the paper), and score or perforate each fold depending on its direction.
 - **Detailed models**: models with more than 2,000 triangles can be simplified on import, with a live 3D preview. The shape and color borders are kept.
 - **Nesting**: pieces are packed tightly, using their real shape and 24 rotations, to save paper.
