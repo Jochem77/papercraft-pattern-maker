@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Numbers only on tabs** (*Settings → Text & numbers*): piece numbers go on a glue tab or flap and edge numbers only on the tabs and flaps, so the faces stay clean and the printed side can be the outside (for example to score on the outside).
 - **Tabs without glue: tab and flap** (*Settings → Glue tabs → Type*): one side of a cut edge gets arrow-shaped tabs, the other side a flap with slits on its fold line. The tabs go through the slits, so tab and flap cross exactly at the seam and hook it tight; nothing shows on the outside. Long edges get several hooks; the edge number is printed on the flap. The tab shapes stay inside the normal tab area, so the unfolding does not change; where there is no room a normal glue tab is used. The slits are in the cut layer of the plotter SVG and drawn as cut lines in the PDF.
 - **Cut at sharp folds** (*Settings → Automatic unfolding*): folds sharper than a chosen angle (default 60°) become a cut with a glue tab, which is easier to build.
 - **Limit piece size** (*Settings → Automatic unfolding*): every piece fits in a square of a chosen size, for smaller pieces that are easier to fold and glue.

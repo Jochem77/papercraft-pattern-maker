@@ -1804,7 +1804,7 @@ const DEF = {
   size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2,
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
   tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100,
-  lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1
+  lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1
 };
 const S = {
   set: { ...DEF }, model: null, fileB64: null, name: '', mesh: null, maxDim: 1, scale: 1,
@@ -1916,6 +1916,8 @@ const NL = {
   'Type': 'Soort', 'With glue': 'Met lijm',
   'Without glue. Tab and flap: the other piece gets a flap with a slit on its fold line; the tab goes through the slit, so tab and flap cross at the seam and hook it tight. Nothing shows on the outside. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room, a normal glue tab is used.': 'Zonder lijm. Lip en randje: het andere stuk krijgt een randje met een sneetje op de vouwlijn; de lip gaat door dat sneetje, zodat lip en randje elkaar op de naad kruisen en de naad strak vasthaken. Aan de buitenkant zie je niets. Het beste met een snijplotter en een strookbreedte van 8 mm of meer. Waar geen ruimte is, komt een gewone plakstrook.',
   'Tab and flap (no glue, hidden)': 'Lip en randje (zonder lijm, onzichtbaar)',
+  'Faces': 'Vlakken', 'Numbers only on tabs': 'Nummers alleen op stroken',
+  'Piece numbers go on a glue tab or flap, and edge numbers are only printed on the tabs and flaps. The faces stay clean, so the printed side can be the outside of the model (for example to score on the outside). Tip: also switch off Print fold lines.': 'Stuknummers komen op een plakstrook of randje, en randnummers alleen op de stroken en randjes. De vlakken blijven schoon, zodat de bedrukte kant de buitenkant van het model kan zijn (bijvoorbeeld om aan de buitenkant te rillen). Tip: zet ook Vouwlijnen printen uit.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2055,7 +2057,9 @@ const TABS = [
     { k: 'fontSize', label: 'Font size', type: 'number', unit: 'mm', min: 1, max: 8, step: 0.5, dep: 'numbers', help: 'Maximum size; on small faces they shrink automatically.' },
     { section: 'Piece numbers' },
     { k: 'pieceNums', label: 'Show piece numbers', type: 'check', help: 'A number in a circle on every piece, also shown in 3D.' },
-    { k: 'pieceNumSize', label: 'Font size', type: 'number', unit: 'mm', min: 2, max: 20, step: 0.5, dep: 'pieceNums' }] },
+    { k: 'pieceNumSize', label: 'Font size', type: 'number', unit: 'mm', min: 2, max: 20, step: 0.5, dep: 'pieceNums' },
+    { section: 'Faces' },
+    { k: 'cleanFaces', label: 'Numbers only on tabs', type: 'check', help: 'Piece numbers go on a glue tab or flap, and edge numbers are only printed on the tabs and flaps. The faces stay clean, so the printed side can be the outside of the model (for example to score on the outside). Tip: also switch off Print fold lines.' }] },
   { id: 'print', icon: '🖨️', title: 'Printing & PDF', intro: 'What goes on the printed pages. The PDF is always true size (1:1).', items: [
     { k: 'printColors', label: 'Print colors', type: 'check', help: 'Off = only lines and numbers, for colored paper.' },
     { k: 'foldPrint', label: 'Print fold lines', type: 'check', help: 'Blue dashes = valley fold, red dash-dot = mountain fold.' },
@@ -2228,7 +2232,7 @@ function applySetting(k) {
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
   if (k === 'tabStyle' && (S.set.tabStyle === 'fin' || (S.tl && S.tl.tabs2))) { S.world = null; refresh(); fitView(); return; }
-  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); return; }
+  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle', 'cleanFaces'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); return; }
 }
 
 // ---------------------------------------------------------------- bestanden
@@ -2859,7 +2863,7 @@ function buildDrawings() {
             if (t2) { // the number goes on the flap, so the face itself stays clean
               const fs = Math.min(st.fontSize, t2.h * 0.6, l * 0.35);
               d.labels.push({ e, x: mx - uy * t2.h * 0.55, y: my + ux * t2.h * 0.55, ang, fs, col: [255, 255, 255], tab: true });
-            } else {
+            } else if (!st.cleanFaces) {
               const fs = Math.min(st.fontSize, inr * 1.05, l * 0.35);
               const off = fs * 0.75;
               d.labels.push({ e, x: mx + uy * off, y: my - ux * off, ang, fs, col: col || [255, 255, 255] });
@@ -2887,9 +2891,42 @@ function buildDrawings() {
     for (const c of sl) for (let t = 0; t <= 4; t++) obs.push({ x: c.a[0] + (c.b[0] - c.a[0]) * t / 4, y: c.a[1] + (c.b[1] - c.a[1]) * t / 4, r: 0.4 });
     p.d.numPos = choosePieceNumPos(p.d.cands, p.d.labels, obs);
   }
+  // piece numbers on a tab; the place on the face stays for the 3D view (f, w)
+  if (st.cleanFaces) for (const p of cp.pieces) {
+    const tp = p.d.numPos && tabNumPos(p);
+    if (tp) p.d.numPos = { ...p.d.numPos, x: tp.x, y: tp.y, fs: tp.fs, onTab: true };
+  }
 }
 
 // Kies de plek voor het stuknummer: zo groot mogelijk, zonder rand-/flapnummers te raken
+// Place for the piece number on one of the piece's glue tabs or flaps (largest size wins), clear
+// of the edge number on that tab. Coordinates in the piece's local frame, like the faces.
+function tabNumPos(p) {
+  const d = p.d, st = S.set, k = font().k, digits = String(S.pieceNo ? S.pieceNo[p.id] : 88).length;
+  const factor = Math.max(0.66, digits * k / 2 + 0.28); // circle radius / font size
+  let best = null;
+  for (const t of d.tabs) {
+    if (t.shape) continue; // arrow tabs: too little room
+    const P0 = t.poly, a = P0[0], b = P0[3], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (!(L > 0)) continue;
+    const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], dTop = (P0[1][0] - a[0]) * u[0] + (P0[1][1] - a[1]) * u[1];
+    const ov = [P0[1][0] - a[0] - u[0] * dTop, P0[1][1] - a[1] - u[1] * dTop], h = Math.hypot(ov[0], ov[1]); if (!(h > 0)) continue;
+    const o = [ov[0] / h, ov[1] / h], y = h / 2;
+    const fs = Math.min(st.pieceNumSize, (h / 2 - 0.3) / factor);
+    if (fs < 1.6) continue;
+    const r = fs * factor + 0.2;
+    const lab = d.labels.find(l => l.tab && l.e === t.e);
+    const lr = lab ? String(S.num[lab.e] || 88).length * k * lab.fs / 2 + 0.4 : 0;
+    const x0 = (y + r) * dTop / h + r, x1 = L - (y + r) * dTop / h - r;
+    for (let x = x0; x <= x1 + 1e-9; x += 0.5) {
+      const c = [a[0] + u[0] * x + o[0] * y, a[1] + u[1] * x + o[1] * y];
+      const dl = lab ? Math.hypot(c[0] - lab.x, c[1] - lab.y) : Infinity;
+      if (dl < r + lr) continue;
+      const score = fs * 100 + Math.min(dl, 50);
+      if (!best || score > best.score) best = { x: c[0], y: c[1], fs, score };
+    }
+  }
+  return best;
+}
 function choosePieceNumPos(cands, labels, extra) {
   const st = S.set, k = font().k;
   const L = st.numbers ? labels.filter(l => l.fs >= 0.9).map(l => { const n = String(S.num[l.e] || 888).length, hw = n * k * l.fs / 2, hh = l.fs * 0.5; return { x: l.x, y: l.y, r: Math.hypot(hw, hh) + 0.2 }; }) : [];
