@@ -21,6 +21,8 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
    - elk stuk past op het papier, binnen de marges;
    - er is geen overlap;
    - elk plakstrookje heeft genoeg ruimte.
+
+   Vind je het model lastig te bouwen? Zet dan onder **Instellingen → Automatisch knippen** de optie **Knippen bij scherpe vouwen** aan: scherpe hoeken worden dan een knip met plakstrook in plaats van een vouw. Met **Stukgrootte beperken** worden de stukken kleiner.
 3. Pas het aan met het gereedschap in de werkbalk (beweeg de muis over een pictogram voor de naam):
    - **Selecteren** (S): een stuk aanklikken, verslepen, draaien met Q/E (met Shift 90°).
    - **Knippen** (K): klik bij een rand om te knippen of te verbinden. Shift+klik zet de plakstrook aan de andere kant; Alt+klik knipt ook randen binnen een plat vlak.
@@ -42,8 +44,8 @@ Onder **Help** (F1) staan alle bediening en sneltoetsen.
 | Wat je ziet | Betekenis |
 |---|---|
 | doorgetrokken lijn | knippen |
-| streepjes | dalvouw (naar je toe) |
-| stippen | bergvouw (van je af) |
+| blauwe streepjes | dalvouw (naar je toe) |
+| rode streep-punt | bergvouw (van je af) |
 | zelfde randnummer | deze randen worden op elkaar geplakt |
 | nummer in een rondje | stuknummer (ook zichtbaar in 3D) |
 | rood vlak of rode strook | overlap, of een strook zonder ruimte |

@@ -27,10 +27,11 @@ Runs entirely in your browser: no installation, no account, and your models neve
   - paint faces in a different color or material;
   - fix single-triangle color errors in one click;
   - optionally cut along color borders and group pages per color, for colored paper.
+- **Easier to build**: optionally cut at sharp folds (they get a glue tab instead), and limit the size of the pieces.
 - **Detailed models**: models with more than 2,000 triangles can be simplified on import, with a live 3D preview. The shape and color borders are kept.
 - **Nesting**: pieces are packed tightly, using their real shape and 24 rotations, to save paper.
 - **Numbering**: matching numbers on edges that are glued together, plus a piece number in a circle (also shown in 3D).
-- **Fold lines**: mountain and valley folds drawn with different line styles.
+- **Fold lines**: valley folds as blue dashes, mountain folds as red dash-dot lines.
 - **Exports**:
   - **PDF** at true size (1:1). Every page has a 50 mm check line so you can verify the print scale.
   - **SVG for cutting plotters**, one file per page, in mm. Layers: *print*, *cut* (one closed outline per piece) and *score* or *perforate*.

@@ -890,7 +890,21 @@ function scoreJoined(m, joined) {
   return { n, small, cutLen, small, score: n * 1000 + small * 700 + tiny * 500 + cutLen / m.diag };
 }
 
+// Edges that fold more sharply than deg degrees (convex or concave).
+function sharpEdges(m, deg) {
+  const t = deg * Math.PI / 180 - 1e-9, a = new Uint8Array(m.E.length);
+  m.E.forEach((E, i) => { if (E.m && E.bend >= t) a[i] = 1; });
+  return a;
+}
+
 function autoPipeline(m, o, onProgress) {
+  // o.avoid: edges that may not be joined (color borders); o.sharpDeg: also cut sharp folds
+  const colorAvoid = o.avoid || null, sharp = o.sharpDeg > 0 ? sharpEdges(m, o.sharpDeg) : null;
+  if (sharp) {
+    const av = colorAvoid ? colorAvoid.slice() : new Uint8Array(m.E.length);
+    sharp.forEach((x, i) => { if (x) av[i] = 1; });
+    o = { ...o, avoid: av };
+  }
   const margin = o.tabH * 1.05;
   const tries = o.tries || 8, budget = o.timeBudget || 6000, t0 = Date.now();
   const orders = edgeOrders(m, tries);
@@ -912,17 +926,28 @@ function autoPipeline(m, o, onProgress) {
     if (o.absorb !== false) {
       absorbSmall(m, joined, o, o.absorbMax || 5);
       repair(m, joined, o);
-      if (o.avoid && o.mergeTinyColors) {
+      if (colorAvoid && o.mergeTinyColors) {
         // alleen complete kleurvlakken van hoogstens 2 driehoeken mogen bij een buurstuk van een andere kleur
         const cp = computePieces(m, joined), av = o.avoid.slice();
         for (const p of cp.pieces) {
           if (p.faces.length > 2) continue;
           const inP = new Set(p.faces);
-          const sameOutside = p.faces.some(f => m.FE[f].some(e => { const E = m.E[e]; return E.m && !o.avoid[e] && !inP.has(otherFace(E, f)); }));
-          if (!sameOutside) for (const f of p.faces) for (const e of m.FE[f]) av[e] = 0;
+          const sameOutside = p.faces.some(f => m.FE[f].some(e => { const E = m.E[e]; return E.m && !colorAvoid[e] && !inP.has(otherFace(E, f)); }));
+          if (!sameOutside) for (const f of p.faces) for (const e of m.FE[f]) if (!(sharp && sharp[e])) av[e] = 0;
         }
         absorbSmall(m, joined, { ...o, avoid: av }, 2);
         repair(m, joined, o);
+      }
+      if (sharp) {
+        // tiny pieces (1–2 small triangles, e.g. a pointed tip) that are only loose because of sharp
+        // folds may still join a neighbour: such a tiny piece is harder to build than a sharp fold
+        const cp = computePieces(m, joined), av = o.avoid.slice(), lim = 4 * o.tabH / o.scale;
+        let any = false;
+        for (const p of cp.pieces) {
+          if (p.faces.length > 2 || p.faces.some(f => m.FE[f].some(e => m.E[e].len > lim))) continue;
+          for (const f of p.faces) for (const e of m.FE[f]) if (sharp[e] && !(colorAvoid && colorAvoid[e])) { av[e] = 0; any = true; }
+        }
+        if (any) { absorbSmall(m, joined, { ...o, avoid: av }, 2); repair(m, joined, o); }
       }
       remergePass(m, joined, o);
       repair(m, joined, o);
@@ -1267,7 +1292,7 @@ function simplifyMesh(pos, target, key) {
 const api = {
   nestLayout, simplifyMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
-  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces,
+  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,
   selfOverlaps, treePath, splitEdge, otherFace, hslToRgb, validateComponent, remergePass, repair, scoreJoined
 };

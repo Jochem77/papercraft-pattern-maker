@@ -205,3 +205,29 @@ test('simplify: fewer triangles, still closed, colour borders kept, deterministi
   const o = opts(m, 150);
   checkUnfolding(m, C.autoPipeline(m, o), o);
 });
+
+test('sharp folds are cut, gentle folds stay joined', () => {
+  // house: the walls meet at 90°, the roof ridge folds less
+  const m = C.buildMesh(house());
+  const o = { ...opts(m, 150), sharpDeg: 60 };
+  const joined = C.autoPipeline(m, o);
+  checkUnfolding(m, joined, o);
+  const sharp = C.sharpEdges(m, 60);
+  m.E.forEach((E, e) => { if (sharp[e]) assert.equal(joined[e], 0, 'sharp edge joined'); });
+  assert.ok(sharp.some(x => x) && sharp.some((x, e) => !x && m.E[e].m && !m.E[e].flat), 'test needs both kinds of folds');
+  // a cylinder (30° between the sides) is not affected
+  const c = C.buildMesh(cylinder(12));
+  const oc = { ...opts(c, 150), sharpDeg: 60 };
+  const jc = C.autoPipeline(c, oc);
+  checkUnfolding(c, jc, oc);
+  assert.ok(C.computePieces(c, jc).pieces.length < 6);
+});
+
+test('a size limit gives smaller pieces that all fit', () => {
+  const m = C.buildMesh(icosphere(2));
+  const big = opts(m, 150), small = { ...big, W: 60, H: 60 };
+  const nBig = C.computePieces(m, C.autoPipeline(m, big)).pieces.length;
+  const js = C.autoPipeline(m, small);
+  const { cp } = checkUnfolding(m, js, small);
+  assert.ok(cp.pieces.length > nBig);
+});

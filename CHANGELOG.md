@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Cut at sharp folds** (*Settings → Automatic unfolding*): folds sharper than a chosen angle (default 60°) become a cut with a glue tab, which is easier to build.
+- **Limit piece size** (*Settings → Automatic unfolding*): every piece fits in a square of a chosen size, for smaller pieces that are easier to fold and glue.
 - **Mirror the 3D view** (checkbox *Mirror* above the 3D view, or *View → Mirror 3D view*): shows the model as a mirror image, for example to compare it with a photo or the real model. Only the display changes; the pattern, pieces and numbers stay the same.
+
+### Changed
+
+- **Clearer fold lines**: valley folds are blue dashes and mountain folds are red dash-dot lines (were grey dashes and grey dots, which were hard to tell apart on paper). Also in the PDF and the plotter SVG print layer.
 
 ### Fixed
 
