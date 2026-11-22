@@ -597,7 +597,22 @@ function layoutTabs(m, cp, lmm, joined, opts) {
     placed[pieceOf[f]].push({ poly: res.t.poly, bb: res.bb, e, f });
   }
   for (const c of conflicts) tabs[c.e].bad = true;
-  return { tabFace, tabs, conflicts };
+  // opts.both: also a flap on the other side of every cut edge (for "tab and flap" without glue:
+  // the tab hooks into a slit in that flap). Only where it fits; otherwise tabs2[e] stays empty
+  // and the edge gets a normal glue tab. The unfolding itself does not change.
+  let tabs2 = null;
+  if (opts.both) {
+    tabs2 = new Array(nE).fill(null);
+    for (const e of cut) {
+      if (!tabs[e] || tabs[e].bad) continue;
+      const E = m.E[e], f2 = E.f[0] === tabFace[e] ? E.f[1] : E.f[0];
+      for (const sc of steps) {
+        const r = tryTab(e, f2, sc);
+        if (r.ok) { tabs2[e] = { poly: r.t.poly, h: r.t.h, f: f2 }; placed[pieceOf[f2]].push({ poly: r.t.poly, bb: r.bb, e, f: f2 }); break; }
+      }
+    }
+  }
+  return { tabFace, tabs, conflicts, tabs2 };
 }
 
 // Overlap van vlakken binnen een stuk.

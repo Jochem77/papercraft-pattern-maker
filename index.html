@@ -806,7 +806,22 @@ function layoutTabs(m, cp, lmm, joined, opts) {
     placed[pieceOf[f]].push({ poly: res.t.poly, bb: res.bb, e, f });
   }
   for (const c of conflicts) tabs[c.e].bad = true;
-  return { tabFace, tabs, conflicts };
+  // opts.both: also a flap on the other side of every cut edge (for "tab and flap" without glue:
+  // the tab hooks into a slit in that flap). Only where it fits; otherwise tabs2[e] stays empty
+  // and the edge gets a normal glue tab. The unfolding itself does not change.
+  let tabs2 = null;
+  if (opts.both) {
+    tabs2 = new Array(nE).fill(null);
+    for (const e of cut) {
+      if (!tabs[e] || tabs[e].bad) continue;
+      const E = m.E[e], f2 = E.f[0] === tabFace[e] ? E.f[1] : E.f[0];
+      for (const sc of steps) {
+        const r = tryTab(e, f2, sc);
+        if (r.ok) { tabs2[e] = { poly: r.t.poly, h: r.t.h, f: f2 }; placed[pieceOf[f2]].push({ poly: r.t.poly, bb: r.bb, e, f: f2 }); break; }
+      }
+    }
+  }
+  return { tabFace, tabs, conflicts, tabs2 };
 }
 
 // Overlap van vlakken binnen een stuk.
@@ -1899,7 +1914,8 @@ const NL = {
   'Pieces: together': 'Stukken: samen', 'Pieces: gaps': 'Stukken: openingen', 'Pieces: exploded': 'Stukken: uit elkaar', 'How far the pieces move apart': 'Hoe ver de stukken uit elkaar gaan',
   'Show the pieces separately in 3D: with a small gap, or moved apart (exploded). The pattern does not change.': 'Toon de stukken los in 3D: met een kleine opening, of uit elkaar geschoven. Het patroon verandert niet.',
   'Type': 'Soort', 'With glue': 'Met lijm', 'Tab and slot (no glue)': 'Lip en gleuf (zonder lijm)', 'Teeth (no glue)': 'Tandjes (zonder lijm)', 'Tuck tabs (no glue)': 'Insteeklippen (zonder lijm)',
-  'Without glue, the tabs hook into a slit that is cut in the other piece (tab and slot, teeth) or tuck in under it. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room for a slit, a normal glue tab is used.': 'Zonder lijm haken de stroken in een sneetje dat in het andere stuk wordt gesneden (lip en gleuf, tandjes), of ze worden eronder geschoven. Het beste met een snijplotter en een strookbreedte van 8 mm of meer. Waar geen ruimte is voor een sneetje, komt een gewone plakstrook.',
+  'Without glue. Tab and flap: the other piece gets a flap with a slit; both fold inwards back to back and the tab hooks into the slit, so nothing shows on the outside. Tab and slot / teeth: the slit is cut in the other piece itself. Tuck: the tab is tucked in under the other piece. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room, a normal glue tab is used.': 'Zonder lijm. Lip en randje: het andere stuk krijgt een randje met een sneetje; beide vouwen rug aan rug naar binnen en de lip haakt in het sneetje, zodat je aan de buitenkant niets ziet. Lip en gleuf / tandjes: het sneetje zit in het andere stuk zelf. Insteeklip: de lip wordt onder het andere stuk geschoven. Het beste met een snijplotter en een strookbreedte van 8 mm of meer. Waar geen ruimte is, komt een gewone plakstrook.',
+  'Tab and flap (no glue, hidden)': 'Lip en randje (zonder lijm, onzichtbaar)',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2021,7 +2037,7 @@ const TABS = [
     { k: 'tabH', label: 'Tab width', type: 'number', unit: 'mm', min: 2, max: 25, step: 0.5, help: 'How far a glue tab sticks out.' },
     { k: 'tabAngle', label: 'Angle', type: 'number', unit: '°', min: 15, max: 85, step: 1, help: 'Slope of the sides; smaller = more pointed.' },
     { k: 'minTab', label: 'Minimum width', type: 'number', unit: '%', min: 30, max: 100, step: 5, help: 'Where space is tight, a tab may become this much narrower (or more pointed).' },
-    { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', slot: 'Tab and slot (no glue)', zip: 'Teeth (no glue)', tuck: 'Tuck tabs (no glue)' }, help: 'Without glue, the tabs hook into a slit that is cut in the other piece (tab and slot, teeth) or tuck in under it. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room for a slit, a normal glue tab is used.' }] },
+    { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', fin: 'Tab and flap (no glue, hidden)', slot: 'Tab and slot (no glue)', zip: 'Teeth (no glue)', tuck: 'Tuck tabs (no glue)' }, help: 'Without glue. Tab and flap: the other piece gets a flap with a slit; both fold inwards back to back and the tab hooks into the slit, so nothing shows on the outside. Tab and slot / teeth: the slit is cut in the other piece itself. Tuck: the tab is tucked in under the other piece. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room, a normal glue tab is used.' }] },
   { id: 'auto', icon: '✂️', title: 'Automatic unfolding', intro: 'How the model is divided into pieces automatically.', items: [
     { k: 'pieceShape', label: 'Shape of the pieces', type: 'select', opts: { large: 'Large (fewest pieces)', compact: 'Compact', vcompact: 'Very compact' }, help: 'Compact pieces have no long arms or ragged edges, so they are easier to fold and glue. They are a bit more pieces.' },
     { k: 'sharpCut', label: 'Cut at sharp folds', type: 'check', help: 'Sharp folds become a cut with a glue tab: easier to build than folding a sharp corner.' },
@@ -2211,6 +2227,7 @@ function applySetting(k) {
     S.prevCols = nc; updateWorld(); render2D(); fitView(); return;
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
+  if (k === 'tabStyle' && (S.set.tabStyle === 'fin' || (S.tl && S.tl.tabs2))) { S.world = null; refresh(); fitView(); return; }
   if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); return; }
 }
 
@@ -2652,7 +2669,7 @@ function refresh() {
   S.cp = cp;
   S.lmm = Core.toMM(cp.local, S.scale);
   const st = S.set;
-  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser });
+  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'fin' });
   S.so = Core.selfOverlaps(cp, S.lmm);
   numberEdges();
   // plaats van elk stuk afleiden uit de vorige wereld-coördinaten (stukken blijven waar ze waren)
@@ -2757,6 +2774,17 @@ function gluelessTab(f, i, t) {
   // distance of a point to the line through p,q (positive on the side of r)
   const side = (p, q, r, z) => { const l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, cr = (v) => ((q[0] - p[0]) * (v[1] - p[1]) - (q[1] - p[1]) * (v[0] - p[0])) / l; return cr(z) * Math.sign(cr(r) || 1); };
   const inG = z => side(ga, gc, gb, z) >= 1.5 && side(gb, gc, ga, z) >= 1.5 && side(ga, gb, gc, z) >= 0.3;
+  // "fin": the slit is in the flap on the other side; x along this edge runs the other way there
+  const fin = style === 'fin', t2 = fin && S.tl.tabs2 ? S.tl.tabs2[e] : null;
+  if (fin && !t2) return null;
+  let slitAt = (x, y) => onG(x, y), slitOK = (x, y) => inG(onG(x, y));
+  if (fin) {
+    const A2 = t2.poly[0], B2 = t2.poly[3], u2 = [(B2[0] - A2[0]) / L, (B2[1] - A2[1]) / L];
+    const d2 = (t2.poly[1][0] - A2[0]) * u2[0] + (t2.poly[1][1] - A2[1]) * u2[1];
+    let o2 = [t2.poly[1][0] - A2[0] - u2[0] * d2, t2.poly[1][1] - A2[1] - u2[1] * d2]; const l2 = Math.hypot(o2[0], o2[1]); o2 = [o2[0] / l2, o2[1] / l2];
+    slitAt = (x, y) => [A2[0] + u2[0] * (L - x) + o2[0] * y, A2[1] + u2[1] * (L - x) + o2[1] * y];
+    slitOK = (x, y) => y <= t2.h - 1.2 && (L - x) >= y * d2 / t2.h + 1 && (L - x) <= L - y * d2 / t2.h - 1;
+  }
   const sDist = Math.max(1.5, Math.min(0.4 * h, h - 2.2)), neckTop = sDist + 0.5;
   if (neckTop > h - 1.2) return null;
   const tooth = (cx, wseg) => {
@@ -2765,9 +2793,10 @@ function gluelessTab(f, i, t) {
     if (wn < 2.5) return null;
     const wt = Math.min(0.55 * wh, 2 * (cx - xmin(h)) - 0.2, 2 * (xmax(h) - cx) - 0.2);
     if (wt < 0.8) return null;
-    const sl = [onG(cx - wn / 2 - SLIT_PLAY / 2, sDist), onG(cx + wn / 2 + SLIT_PLAY / 2, sDist)];
-    if (!inG(sl[0]) || !inG(sl[1])) return null;
-    if ((slitReg.get(g) || []).some(o => segDist(sl[0], sl[1], o[0], o[1]) < SLIT_GAP)) return null;
+    const x0 = cx - wn / 2 - SLIT_PLAY / 2, x1 = cx + wn / 2 + SLIT_PLAY / 2;
+    if (!slitOK(x0, sDist) || !slitOK(x1, sDist)) return null;
+    const sl = [slitAt(x0, sDist), slitAt(x1, sDist)];
+    if (!fin && (slitReg.get(g) || []).some(o => segDist(sl[0], sl[1], o[0], o[1]) < SLIT_GAP)) return null;
     return { cx, wn, wh, wt, slit: sl };
   };
   let teeth = [];
@@ -2785,16 +2814,22 @@ function gluelessTab(f, i, t) {
     folds.push([l0, r0]);
   }
   shape.push(b);
-  if (!slitReg.has(g)) slitReg.set(g, []);
-  for (const T of teeth) slitReg.get(g).push(T.slit);
+  if (!fin) { if (!slitReg.has(g)) slitReg.set(g, []); for (const T of teeth) slitReg.get(g).push(T.slit); }
   const mid = teeth[Math.floor((teeth.length - 1) / 2)];
-  return { shape, folds, slits: teeth.map(T => ({ g, e, n, d: sDist, pts: T.slit })), label: { pos: Q(mid.cx, (neckTop + h) / 2), max: Math.min((h - neckTop) * 0.7, mid.wh * 0.45) } };
+  return { shape, folds, slits: teeth.map(T => ({ g, e, n, d: sDist, pts: T.slit, flap: fin })), label: { pos: Q(mid.cx, (neckTop + h) / 2), max: Math.min((h - neckTop) * 0.7, mid.wh * 0.45) } };
 }
 
 function buildDrawings() {
   const m = S.mesh, st = S.set, cp = S.cp;
   const slitsTodo = [];
   slitReg.clear();
+  const glMap = new Map();
+  m.E.forEach((E, e) => {
+    const f = S.tl.tabFace[e], t = S.tl.tabs[e];
+    if (f < 0 || !t || t.bad) return;
+    const r = gluelessTab(f, m.FE[f].indexOf(e), t);
+    if (r) glMap.set(e, r);
+  });
   for (const p of cp.pieces) {
     const d = { faces: [], tabs: [], cuts: [], folds: [], hits: [], labels: [], bad: false };
     p.d = d;
@@ -2831,7 +2866,7 @@ function buildDrawings() {
           if (S.tl.tabFace[e] === f) {
             const t = S.tl.tabs[e];
             // without glue (when possible): other shape inside the same tab area, plus slits
-            const gl = !t.bad ? gluelessTab(f, i, t) : null;
+            const gl = glMap.get(e) || null;
             d.tabs.push({ e, f, poly: t.poly, shape: gl ? gl.shape : null, bad: t.bad });
             if (t.bad) d.bad = true;
             if (gl) {
@@ -2846,7 +2881,11 @@ function buildDrawings() {
               d.labels.push({ e, x: mx - uy * t.h / 2, y: my + ux * t.h / 2, ang, fs, col: [255, 255, 255], tab: true });
             }
           } else {
-            d.cuts.push({ e, a, b });
+            const t2 = st.tabStyle === 'fin' && glMap.has(e) && S.tl.tabs2 ? S.tl.tabs2[e] : null;
+            if (t2) { // flap with the slit (the slit itself is added below)
+              d.tabs.push({ e, f, poly: t2.poly, shape: null, bad: false, flap: true });
+              d.folds.push({ e, a, b, type: foldType(true), tab: true });
+            } else d.cuts.push({ e, a, b });
             const fs = Math.min(st.fontSize, inr * 1.05, l * 0.35);
             const off = fs * 0.75;
             d.labels.push({ e, x: mx + uy * off, y: my - ux * off, ang, fs, col: col || [255, 255, 255] });
@@ -2865,7 +2904,7 @@ function buildDrawings() {
     const d = cp.pieces[cp.pieceOf[sl.g]].d;
     d.cuts.push({ a: sl.pts[0], b: sl.pts[1], slit: true });
     // the edge number on this side moves inwards, past the slit
-    const l = moved.has(sl.e) ? null : d.labels.find(x => x.e === sl.e && !x.tab);
+    const l = moved.has(sl.e) || sl.flap ? null : d.labels.find(x => x.e === sl.e && !x.tab);
     if (l) { const sh = sl.d + 0.4 - 0.25 * l.fs; l.x += sl.n[0] * sh; l.y += sl.n[1] * sh; moved.add(sl.e); }
   }
   // piece numbers keep clear of the slits
