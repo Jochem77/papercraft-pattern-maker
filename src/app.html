@@ -470,7 +470,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2,
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, cutColors: false, mergeIslands: false, groupColors: false, sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100,
+  tabH: 6, tabAngle: 45, minTab: 60, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1
 };
 const S = {
@@ -576,6 +576,8 @@ const NL = {
   'Perforation: cut': 'Perforatie: snede', 'Perforation: bridge': 'Perforatie: brug',
   'Length of each cut of a perforated fold line.': 'Lengte van elke snede van een geperforeerde vouwlijn.',
   'Uncut part between two cuts. Larger = stronger, but stiffer to fold. Photo card: about 1 mm.': 'Ongesneden stukje tussen twee sneden. Groter = sterker, maar stugger te vouwen. Fotokarton: ongeveer 1 mm.',
+  'Shape of the pieces': 'Vorm van de stukken', 'Large (fewest pieces)': 'Groot (zo min mogelijk stukken)', 'Compact': 'Compact', 'Very compact': 'Zeer compact',
+  'Compact pieces have no long arms or ragged edges, so they are easier to fold and glue. They are a bit more pieces.': 'Compacte stukken hebben geen lange armen of rafelige randen, dus ze zijn makkelijker te vouwen en te plakken. Het worden wel iets meer stukken.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -698,6 +700,7 @@ const TABS = [
     { k: 'tabAngle', label: 'Angle', type: 'number', unit: '°', min: 15, max: 85, step: 1, help: 'Slope of the sides; smaller = more pointed.' },
     { k: 'minTab', label: 'Minimum width', type: 'number', unit: '%', min: 30, max: 100, step: 5, help: 'Where space is tight, a tab may become this much narrower (or more pointed).' }] },
   { id: 'auto', icon: '✂️', title: 'Automatic unfolding', intro: 'How the model is divided into pieces automatically.', items: [
+    { k: 'pieceShape', label: 'Shape of the pieces', type: 'select', opts: { large: 'Large (fewest pieces)', compact: 'Compact', vcompact: 'Very compact' }, help: 'Compact pieces have no long arms or ragged edges, so they are easier to fold and glue. They are a bit more pieces.' },
     { k: 'sharpCut', label: 'Cut at sharp folds', type: 'check', help: 'Sharp folds become a cut with a glue tab: easier to build than folding a sharp corner.' },
     { k: 'sharpDeg', label: 'Sharp from', type: 'number', unit: '°', min: 10, max: 170, step: 5, dep: 'sharpCut', help: 'Folds of this angle or more are cut. 0° = flat, 90° = the corner of a box. Lower = more cuts.' },
     { k: 'maxPieceOn', label: 'Limit piece size', type: 'check', help: 'Smaller pieces are easier to fold and glue, but there are more of them.' },
@@ -802,7 +805,7 @@ function settingsDone() {
   applySettings(keys);
 }
 // Apply several changed settings at once: unfold again at most once.
-const RELAYOUT = ['size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
+const RELAYOUT = ['pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
 async function applySettings(keys) {
   if (keys.includes('lang')) applyLanguage();
   if (!S.mesh) return;
@@ -878,7 +881,7 @@ function applySetting(k) {
   if (k === 'pieceGap') { S.world = null; refresh(); fitView(); return; }
   if (k.startsWith('sil')) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
   if (['paper', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
-  if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
+  if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
   if (k === 'pageCols') {
     const old = S.prevCols || 3, nc = pageCols();
     for (const p of S.cp.pieces) if (p.page >= 0) { const a = pageOrigin(p.page, old), b = pageOrigin(p.page, nc); p.x += b[0] - a[0]; p.y += b[1] - a[1]; }
@@ -1242,7 +1245,7 @@ function autoOptions() {
   if (ob.length) { W -= ob[0].w + 1; H -= ob[0].h + 1; }
   if (st.maxPieceOn && st.maxPiece > 0) { W = Math.min(W, st.maxPiece); H = Math.min(H, st.maxPiece); }
   return { scale: S.scale, W, H, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
-    sharpDeg: st.sharpCut ? st.sharpDeg : 0 };
+    sharpDeg: st.sharpCut ? st.sharpDeg : 0, isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
 }
 function warnRecut() {
   const bad = S.cp ? S.cp.pieces.filter(p => p.off || p.big).length : 0;

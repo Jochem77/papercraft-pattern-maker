@@ -687,6 +687,17 @@ function validateComponent(m, joined, seed, o, info) {
   let ok = true;
   const conf = info ? new Set() : null;
   if (info) { info.faces = faces; info.parent = parent; info.conflicts = conf; info.tooBig = false; info.ring = false; }
+  // o.isoMax: reject long, ragged pieces. Compactness = outline² / (4π · area): 1 for a disc,
+  // about 4 for a 1:10 strip. Small pieces are always fine.
+  // (not while cleaning up tiny pieces, which is checked with info: a tiny loose piece is worse)
+  if (o.isoMax && !info && faces.length > 4) {
+    let per = 0, A = 0;
+    for (const f of faces) {
+      const T = m.F[f]; A += len(cross(sub(m.V[T[1]], m.V[T[0]]), sub(m.V[T[2]], m.V[T[0]]))) / 2;
+      for (const e of m.FE[f]) if (!m.E[e].m || !joined[e]) per += m.E[e].len;
+    }
+    if (per * per / (4 * Math.PI * A) > o.isoMax) return false;
+  }
   const tol = m.diag * 1e-5;
   for (const f of faces) for (const e of m.FE[f]) {
     const E = m.E[e];

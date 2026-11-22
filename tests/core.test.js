@@ -231,3 +231,18 @@ test('a size limit gives smaller pieces that all fit', () => {
   const { cp } = checkUnfolding(m, js, small);
   assert.ok(cp.pieces.length > nBig);
 });
+
+test('compact pieces: no long ragged pieces, still a valid unfolding', () => {
+  const m = C.buildMesh(icosphere(2));
+  const o = { ...opts(m, 150), isoMax: 4 };
+  const { cp } = checkUnfolding(m, C.autoPipeline(m, o), o);
+  const area = f => { const T = m.F[f]; const a = m.V[T[0]], b = m.V[T[1]], c = m.V[T[2]]; const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]; return Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) / 2; };
+  const joined = C.autoPipeline(m, o);
+  for (const p of C.computePieces(m, joined).pieces) {
+    if (p.faces.length <= 4) continue;
+    let per = 0, A = 0;
+    for (const f of p.faces) { A += area(f); for (const e of m.FE[f]) if (!joined[e]) per += m.E[e].len; }
+    assert.ok(per * per / (4 * Math.PI * A) <= 4 + 1e-9, 'piece too ragged');
+  }
+  assert.ok(cp.pieces.length >= 2);
+});
