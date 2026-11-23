@@ -1420,6 +1420,19 @@ const font = () => FONTS[S.set.fontFamily] || FONTS.helvetica;
 // Width of a number in mm. Positions text explicitly (left start + baseline), because
 // Silhouette Studio ignores text-anchor and dominant-baseline in SVG files.
 const textW = (n, fs) => String(n).length * font().k * fs;
+// A number that reads as another number when turned upside down (6 / 9, 16 / 91, 86 / 98 …) gets a
+// line under it, like on billiard balls. Numbers that stay the same (69, 88, 11) do not need one.
+function flipAmbiguous(n) {
+  const t = String(n); if (!/^[01689]+$/.test(t)) return false;
+  const turned = [...t].reverse().map(c => (c === '6' ? '9' : c === '9' ? '6' : c)).join('');
+  return turned !== t && turned[0] !== '0'; // '10' upside down is '01': not a number you would read
+}
+// SVG line under a number centred on (cx, cy) (before any rotation)
+function underlineSvg(n, cx, cy, fs, col, transform) {
+  if (!flipAmbiguous(n)) return '';
+  const w = textW(n, fs) * 0.9, y = cy + fs * 0.52;
+  return `<line x1="${fx(cx - w / 2)}" y1="${fx(y)}" x2="${fx(cx + w / 2)}" y2="${fx(y)}" stroke="${col}" stroke-width="${fx(Math.max(0.12, fs * 0.08))}" stroke-linecap="round"${transform ? ` transform="${transform}"` : ''}/>`;
+}
 const lum = c => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]);
 function faceFill(f) { return S.faceColor ? S.faceColor[f] : null; }
 
@@ -1884,10 +1897,10 @@ function pieceBody(p, mode, opt) {
       const C = T([d.numPos.x, d.numPos.y]);
       if (pn.pill) {
         const ang = screen ? upright(d.numPos.ang + p.rot) - p.rot : upright(d.numPos.ang + p.rot);
-        s += `<g class="pnum" transform="rotate(${fx(ang)} ${fx(C[0])} ${fx(C[1])})"><rect x="${fx(C[0] - pn.pill.w / 2)}" y="${fx(C[1] - pn.pill.h / 2)}" width="${fx(pn.pill.w)}" height="${fx(pn.pill.h)}" rx="${fx(pn.pill.h / 2)}" fill="#fff" stroke="#222" stroke-width="${fx(pn.fs * 0.07)}"/><text x="${fx(C[0] - textW(pn.n, pn.fs) / 2)}" y="${fx(C[1] + pn.fs * 0.36)}" font-size="${fx(pn.fs)}" font-family='${font().css}' font-weight="bold" fill="#111">${pn.n}</text></g>`;
+        s += `<g class="pnum" transform="rotate(${fx(ang)} ${fx(C[0])} ${fx(C[1])})"><rect x="${fx(C[0] - pn.pill.w / 2)}" y="${fx(C[1] - pn.pill.h / 2)}" width="${fx(pn.pill.w)}" height="${fx(pn.pill.h)}" rx="${fx(pn.pill.h / 2)}" fill="#fff" stroke="#222" stroke-width="${fx(pn.fs * 0.07)}"/><text x="${fx(C[0] - textW(pn.n, pn.fs) / 2)}" y="${fx(C[1] + pn.fs * 0.36)}" font-size="${fx(pn.fs)}" font-family='${font().css}' font-weight="bold" fill="#111">${pn.n}</text>${underlineSvg(pn.n, C[0], C[1], pn.fs, '#111')}</g>`;
       } else {
       const rotA = screen ? ` transform="rotate(${fx(-p.rot)} ${fx(C[0])} ${fx(C[1])})"` : '';
-      s += `<g class="pnum"${rotA}><circle cx="${fx(C[0])}" cy="${fx(C[1])}" r="${fx(pn.r)}" fill="#fff" stroke="#222" stroke-width="${fx(pn.fs * 0.07)}"/><text x="${fx(C[0] - textW(pn.n, pn.fs) / 2)}" y="${fx(C[1] + pn.fs * 0.36)}" font-size="${fx(pn.fs)}" font-family='${font().css}' font-weight="bold" fill="#111">${pn.n}</text></g>`;
+      s += `<g class="pnum"${rotA}><circle cx="${fx(C[0])}" cy="${fx(C[1])}" r="${fx(pn.r)}" fill="#fff" stroke="#222" stroke-width="${fx(pn.fs * 0.07)}"/><text x="${fx(C[0] - textW(pn.n, pn.fs) / 2)}" y="${fx(C[1] + pn.fs * 0.36)}" font-size="${fx(pn.fs)}" font-family='${font().css}' font-weight="bold" fill="#111">${pn.n}</text>${underlineSvg(pn.n, C[0], C[1], pn.fs, '#111')}</g>`;
       }
     }
   }
@@ -1899,7 +1912,7 @@ function pieceBody(p, mode, opt) {
       const W = T([l.x, l.y]);
       const ang = screen ? upright(l.ang + p.rot) - p.rot : upright(l.ang + p.rot);
       const dark = !colors || l.tab || lum(l.col) > 140;
-      s += `<text x="${fx(W[0] - textW(n, l.fs) / 2)}" y="${fx(W[1] + l.fs * 0.36)}" font-size="${fx(l.fs)}" font-family='${font().css}' font-weight="${font().weight}" fill="${dark ? '#222' : '#fff'}" transform="rotate(${fx(ang)} ${fx(W[0])} ${fx(W[1])})">${n}</text>`;
+      s += `<text x="${fx(W[0] - textW(n, l.fs) / 2)}" y="${fx(W[1] + l.fs * 0.36)}" font-size="${fx(l.fs)}" font-family='${font().css}' font-weight="${font().weight}" fill="${dark ? '#222' : '#fff'}" transform="rotate(${fx(ang)} ${fx(W[0])} ${fx(W[1])})">${n}</text>` + underlineSvg(n, W[0], W[1], l.fs, dark ? '#222' : '#fff', `rotate(${fx(ang)} ${fx(W[0])} ${fx(W[1])})`);
     }
   }
   return s;
@@ -2505,6 +2518,10 @@ function pdfPageOps(pageIdx, k, total) {
     const w = String(str).length * font().k * fs; // breedte van cijfers in dit lettertype
     const ox = cx - c * w / 2 - sn * 0.35 * fs, oy = cy - sn * w / 2 + c * 0.35 * fs;
     o.push(`${rgbOp(col, 'rg')} BT ${fnt} ${fx(fs)} Tf ${fx(c)} ${fx(sn)} ${fx(sn)} ${fx(-c)} ${fx(ox - x0)} ${fx(oy - y0)} Tm (${pdfTxt(str)}) Tj ET`);
+    if (flipAmbiguous(str)) { // line under 6 / 9 and the like
+      const mx = cx - sn * 0.52 * fs, my = cy + c * 0.52 * fs, hw = w * 0.45;
+      o.push(`[] 0 d 1 J ${rgbOp(col, 'RG')} ${fx(Math.max(0.12, fs * 0.08))} w ${fx(mx - c * hw - x0)} ${fx(my - sn * hw - y0)} m ${fx(mx + c * hw - x0)} ${fx(my + sn * hw - y0)} l S`);
+    }
   };
   for (const p of S.cp.pieces) {
     if (p.page !== pageIdx) continue;
