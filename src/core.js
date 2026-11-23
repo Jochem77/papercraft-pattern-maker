@@ -1089,10 +1089,14 @@ function autoPipeline(m, o, onProgress) {
       absorbSmall(m, joined, o, o.absorbMax || 5);
       repair(m, joined, o);
       if (colorAvoid && o.mergeTinyColors) {
-        // alleen complete kleurvlakken van hoogstens 2 driehoeken mogen bij een buurstuk van een andere kleur
+        // alleen complete kleurvlakken van hoogstens 2 driehoeken mogen bij een buurstuk van een andere kleur,
+        // and only when they are really small or narrow (a large island, like an eye, stays its own piece)
         const cp = computePieces(m, joined), av = o.avoid.slice();
+        const minW = o.minWidth > 0 ? o.minWidth : 8, minS = o.minSize > 0 ? o.minSize : 25;
         for (const p of cp.pieces) {
           if (p.faces.length > 2) continue;
+          const sh = pieceShape(cp, p.faces, o.scale);
+          if (sh.minW >= minW && sh.maxD >= minS) continue;
           const inP = new Set(p.faces);
           const sameOutside = p.faces.some(f => m.FE[f].some(e => { const E = m.E[e]; return E.m && !colorAvoid[e] && !inP.has(otherFace(E, f)); }));
           if (!sameOutside) for (const f of p.faces) for (const e of m.FE[f]) if (!(sharp && sharp[e])) av[e] = 0;

@@ -1299,10 +1299,14 @@ function autoPipeline(m, o, onProgress) {
       absorbSmall(m, joined, o, o.absorbMax || 5);
       repair(m, joined, o);
       if (colorAvoid && o.mergeTinyColors) {
-        // alleen complete kleurvlakken van hoogstens 2 driehoeken mogen bij een buurstuk van een andere kleur
+        // alleen complete kleurvlakken van hoogstens 2 driehoeken mogen bij een buurstuk van een andere kleur,
+        // and only when they are really small or narrow (a large island, like an eye, stays its own piece)
         const cp = computePieces(m, joined), av = o.avoid.slice();
+        const minW = o.minWidth > 0 ? o.minWidth : 8, minS = o.minSize > 0 ? o.minSize : 25;
         for (const p of cp.pieces) {
           if (p.faces.length > 2) continue;
+          const sh = pieceShape(cp, p.faces, o.scale);
+          if (sh.minW >= minW && sh.maxD >= minS) continue;
           const inP = new Set(p.faces);
           const sameOutside = p.faces.some(f => m.FE[f].some(e => { const E = m.E[e]; return E.m && !colorAvoid[e] && !inP.has(otherFace(E, f)); }));
           if (!sameOutside) for (const f of p.faces) for (const e of m.FE[f]) if (!(sharp && sharp[e])) av[e] = 0;
@@ -2315,7 +2319,7 @@ const NL = {
   'Minimum width': 'Minimale breedte', 'Where space is tight, a tab may become this much narrower (or more pointed).': 'Is er weinig ruimte, dan mag een strookje tot dit percentage smaller (of spitser) worden.',
   'Automatic unfolding': 'Automatisch knippen', 'How the model is divided into pieces automatically.': 'Hoe het model automatisch in stukken wordt verdeeld.',
   'Cut along color borders': 'Knippen op kleurgrenzen', 'Every piece gets a single color – useful for colored paper.': 'Elk stuk krijgt één kleur – handig als je op gekleurd papier werkt.',
-  'Merge tiny color islands': 'Mini-kleurvlakjes bij buurstuk', 'Color islands of 1–2 triangles join a neighbouring piece (their color is printed) instead of becoming a tiny piece.': 'Kleurvlakjes van 1–2 driehoeken gaan mee met een buurstuk (hun kleur wordt meegeprint) in plaats van een los mini-stukje.',
+  'Merge tiny color islands': 'Mini-kleurvlakjes bij buurstuk', 'Small or narrow color islands of 1–2 triangles (below Avoid pieces smaller / narrower than) join a neighbouring piece (their color is printed) instead of becoming a tiny piece. Larger islands stay a piece of their own.': 'Kleine of smalle kleurvlakjes van 1–2 driehoeken (onder Stukken kleiner / smaller dan dit vermijden) gaan mee met een buurstuk (hun kleur wordt meegeprint) in plaats van een los mini-stukje. Grotere vlakjes blijven een eigen stuk.',
   'Pages per color': 'Pagina’s per kleur', 'Each color gets its own pages.': 'Elke kleur krijgt eigen pagina’s.',
   'When you change paper, size or tabs, the model is unfolded again automatically – unless you edited edges yourself. Then use <b>Unfold automatically</b>.': 'Wijzig je papier, afmetingen of strookjes, dan wordt opnieuw automatisch geknipt – tenzij je zelf al randen hebt aangepast. Gebruik dan <b>Automatisch knippen</b>.',
   'Text & numbers': 'Tekst & nummers', 'Font and size of the numbers in the pattern.': 'Lettertype en grootte van de nummers in het patroon.', 'Font': 'Lettertype', 'Helvetica bold': 'Helvetica vet',
@@ -2408,7 +2412,7 @@ const TABS = [
     { k: 'minSize', label: 'Avoid pieces smaller than', type: 'number', unit: 'mm', min: 0, max: 100, step: 1, help: 'Very small pieces are joined to a neighbouring piece where possible. 0 = off.' },
     { k: 'maxFaces', label: 'Maximum faces per piece', type: 'number', min: 0, max: 500, step: 1, help: 'Smaller pieces with fewer faces are easier to fold. A flat area made of several triangles (for example a square) counts as one face. 0 = no limit.' },
     { k: 'cutColors', label: 'Cut along color borders', type: 'check', help: 'Every piece gets a single color – useful for colored paper.' },
-    { k: 'mergeIslands', label: 'Merge tiny color islands', type: 'check', dep: 'cutColors', help: 'Color islands of 1–2 triangles join a neighbouring piece (their color is printed) instead of becoming a tiny piece.' },
+    { k: 'mergeIslands', label: 'Merge tiny color islands', type: 'check', dep: 'cutColors', help: 'Small or narrow color islands of 1–2 triangles (below Avoid pieces smaller / narrower than) join a neighbouring piece (their color is printed) instead of becoming a tiny piece. Larger islands stay a piece of their own.' },
     { k: 'groupColors', label: 'Pages per color', type: 'check', help: 'Each color gets its own pages.' }],
     note: 'When you change paper, size or tabs, the model is unfolded again automatically – unless you edited edges yourself. Then use <b>Unfold automatically</b>.' },
   { id: 'text', icon: '🔢', title: 'Text & numbers', intro: 'Font and size of the numbers in the pattern.', preview: 'font', items: [
