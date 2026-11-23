@@ -2894,75 +2894,74 @@ function buildDrawings() {
   // piece numbers on a tab; the place on the face stays for the 3D view (f, w)
   if (st.cleanFaces) for (const p of cp.pieces) {
     const tp = p.d.numPos && tabNumPos(p);
-    if (tp) p.d.numPos = { ...p.d.numPos, x: tp.x, y: tp.y, fs: tp.fs, onTab: true };
+    if (tp) p.d.numPos = { ...p.d.numPos, x: tp.x, y: tp.y, fs: tp.fs, ang: tp.ang, pill: true, onTab: true };
   }
 }
 
 // Kies de plek voor het stuknummer: zo groot mogelijk, zonder rand-/flapnummers te raken
-// Place for the piece number on one of the piece's glue tabs or flaps (largest size wins), clear
-// of the edge number on that tab. Coordinates in the piece's local frame, like the faces.
+// The piece number on a tab is drawn in a "pill" (rounded rectangle) along the tab, like the edge
+// numbers, so it can be much larger than a circle in the same narrow strip.
+const PILL_H = 1.3, PILL_PAD = 0.7; // pill height = fs * PILL_H, width = text width + fs * PILL_PAD
 function tabNumPos(p) {
   const d = p.d, st = S.set, k = font().k, digits = String(S.pieceNo ? S.pieceNo[p.id] : 88).length;
-  const factor = Math.max(0.66, digits * k / 2 + 0.28); // circle radius / font size
+  const pillW = fs => digits * k * fs + fs * PILL_PAD;
   let best = null;
+  const offer = (fs, c, ang, score, move) => { if (!best || score > best.score) best = { x: c[0], y: c[1], fs, ang, pill: true, score, move }; };
   for (const t of d.tabs) {
-    if (t.shape) { // arrow tabs: in a head that does not carry the edge number
+    const lab = d.labels.find(l => l.tab && l.e === t.e && l.fs >= 0.9);
+    const lw = lab ? String(S.num[lab.e] || 88).length * k * lab.fs / 2 + 0.3 : 0; // half width of the edge number
+    if (t.shape) { // arrow tab: in a head that does not carry the edge number
       if (!t.heads) continue;
-      const F = t.frame, lab = d.labels.find(l => l.tab && l.e === t.e);
-      const lw = lab ? String(S.num[lab.e] || 88).length * k * lab.fs / 2 + 0.3 : 0;
+      const F = t.frame, ang = Math.atan2(F.u[1], F.u[0]) * 180 / Math.PI, hh = F.h - F.neckTop;
       for (const H of t.heads) {
-        const yc = (F.neckTop + F.h) / 2, width = yy => H.wh + (H.wt - H.wh) * (yy - F.neckTop) / (F.h - F.neckTop);
-        let r = (F.h - F.neckTop) / 2 - 0.15;
-        while (r > 0.5 && width(yc + r) < 2 * r + 0.4) r -= 0.1;
-        const fs = Math.min(st.pieceNumSize, (r - 0.2) / factor);
-        if (fs < 1.3) continue;
+        const width = yy => H.wh + (H.wt - H.wh) * (yy - F.neckTop) / hh, yc = F.neckTop + hh / 2;
         const c = [F.a[0] + F.u[0] * H.cx + F.o[0] * yc, F.a[1] + F.u[1] * H.cx + F.o[1] * yc];
-        if (lab && Math.hypot(c[0] - lab.x, c[1] - lab.y) < r + lw) continue;
-        const score = fs * 100 - 5;
-        if (!best || score > best.score) best = { x: c[0], y: c[1], fs, score, move: null };
+        if (lab && Math.hypot(c[0] - lab.x, c[1] - lab.y) < width(yc) / 2) continue;
+        for (let fs = Math.min(st.pieceNumSize, (hh - 0.4) / PILL_H); fs >= 1.3; fs *= 0.9) {
+          if (pillW(fs) + 0.4 <= width(yc + fs * PILL_H / 2)) { offer(fs, c, ang, fs * 100 - 5, null); break; }
+        }
       }
       continue;
     }
     const P0 = t.poly, a = P0[0], b = P0[3], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (!(L > 0)) continue;
     const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], dTop = (P0[1][0] - a[0]) * u[0] + (P0[1][1] - a[1]) * u[1];
     const ov = [P0[1][0] - a[0] - u[0] * dTop, P0[1][1] - a[1] - u[1] * dTop], h = Math.hypot(ov[0], ov[1]); if (!(h > 0)) continue;
-    const o = [ov[0] / h, ov[1] / h], y = h / 2, xmax = yy => L - yy * dTop / h, xmin = yy => yy * dTop / h;
+    const o = [ov[0] / h, ov[1] / h], ang = Math.atan2(u[1], u[0]) * 180 / Math.PI;
+    const xmax = yy => L - yy * dTop / h, xmin = yy => yy * dTop / h;
     const at = (x, yy) => [a[0] + u[0] * x + o[0] * yy, a[1] + u[1] * x + o[1] * yy];
-    const lab = d.labels.find(l => l.tab && l.e === t.e && l.fs >= 0.9);
-    const lw = lab ? String(S.num[lab.e] || 88).length * k * lab.fs / 2 + 0.3 : 0; // half width of the edge number
     const lx = lab ? (lab.x - a[0]) * u[0] + (lab.y - a[1]) * u[1] : 0, ly = lab ? (lab.x - a[0]) * o[0] + (lab.y - a[1]) * o[1] : 0;
-    // largest size first; smaller when needed (down to 1.3 mm)
-    for (let fs = Math.min(st.pieceNumSize, (h / 2 - 0.3) / factor); fs >= 1.3; fs *= 0.85) {
-      const r = fs * factor + 0.2, lo = xmin(y + r) + r, hi = xmax(y + r) - r;
+    for (let fs = Math.min(st.pieceNumSize, (h - 0.6) / PILL_H); fs >= 1.3; fs *= 0.9) {
+      const ph = fs * PILL_H, pw = pillW(fs), y = h / 2;
+      const lo = xmin(y + ph / 2) + pw / 2 + 0.2, hi = xmax(y + ph / 2) - pw / 2 - 0.2;
       if (hi < lo) continue;
+      // 1. next to the edge number where it is now
       let found = null;
-      // 1. a free spot next to the edge number where it is now
-      for (let x = lo; x <= hi + 1e-9; x += 0.5) {
-        if (lab && Math.abs(x - lx) < r + lw) continue;
-        const sc = lab ? Math.min(Math.abs(x - lx), 50) : 0;
+      for (let x = lo; x <= hi + 1e-9; x += 0.25) {
+        if (lab && Math.abs(x - lx) < pw / 2 + lw + 0.3) continue;
+        const sc = lab ? Math.min(Math.abs(x - lx), 50) : -Math.abs(x - L / 2);
         if (!found || sc > found.sc) found = { x, sc };
       }
-      if (found) {
-        const c = at(found.x, y), score = fs * 100 + 10;
-        if (!best || score > best.score) best = { x: c[0], y: c[1], fs, score, move: null };
-        break;
-      }
+      if (found) { offer(fs, at(found.x, y), ang, fs * 100 + 10, null); break; }
       // 2. piece number at one end, edge number moved to the other end
       if (lab) {
-        const lhi = xmax(ly + lab.fs * 0.5) - lw - 0.2, llo = xmin(ly + lab.fs * 0.5) + lw + 0.2;
-        let move = null;
-        if (lo + r + 0.3 + lw <= lhi) move = { px: lo, lx: Math.max(lo + r + 0.3 + lw, (lo + r + lhi) / 2) };
-        else if (hi - r - 0.3 - lw >= llo) move = { px: hi, lx: Math.min(hi - r - 0.3 - lw, (hi - r + llo) / 2) };
-        if (move) {
-          const c = at(move.px, y), score = fs * 100;
-          if (!best || score > best.score) best = { x: c[0], y: c[1], fs, score, move: { lab, pos: at(move.lx, ly) } };
-          break;
-        }
+        const lhi = xmax(ly + lab.fs * 0.5) - lw - 0.2, llo = xmin(ly + lab.fs * 0.5) + lw + 0.2, gap = pw / 2 + 0.3 + lw;
+        let mv = null;
+        if (lo + gap <= lhi) mv = { px: lo, lx: Math.max(lo + gap, (lo + pw / 2 + lhi) / 2) };
+        else if (hi - gap >= llo) mv = { px: hi, lx: Math.min(hi - gap, (hi - pw / 2 + llo) / 2) };
+        if (mv) { offer(fs, at(mv.px, y), ang, fs * 100, { lab, pos: at(mv.lx, ly) }); break; }
       }
     }
   }
   if (best && best.move) { best.move.lab.x = best.move.pos[0]; best.move.lab.y = best.move.pos[1]; }
   return best;
+}
+// rounded rectangle around (cx, cy), length w along angle ang (degrees), height h
+function pillPts(cx, cy, w, h, ang) {
+  const r = h / 2, s = Math.max(0, w / 2 - r), c = Math.cos(ang * Math.PI / 180), sn = Math.sin(ang * Math.PI / 180), out = [];
+  const add = (x, y) => out.push([cx + c * x - sn * y, cy + sn * x + c * y]);
+  for (let i = 0; i <= 8; i++) { const t = -Math.PI / 2 + Math.PI * i / 8; add(s + r * Math.cos(t), r * Math.sin(t)); }
+  for (let i = 0; i <= 8; i++) { const t = Math.PI / 2 + Math.PI * i / 8; add(-s + r * Math.cos(t), r * Math.sin(t)); }
+  return out;
 }
 function choosePieceNumPos(cands, labels, extra) {
   const st = S.set, k = font().k;
@@ -3121,8 +3120,13 @@ function pieceBody(p, mode, opt) {
     const pn = pieceNumGeom(p);
     if (pn) {
       const C = T([d.numPos.x, d.numPos.y]);
+      if (pn.pill) {
+        const ang = screen ? upright(d.numPos.ang + p.rot) - p.rot : upright(d.numPos.ang + p.rot);
+        s += `<g class="pnum" transform="rotate(${fx(ang)} ${fx(C[0])} ${fx(C[1])})"><rect x="${fx(C[0] - pn.pill.w / 2)}" y="${fx(C[1] - pn.pill.h / 2)}" width="${fx(pn.pill.w)}" height="${fx(pn.pill.h)}" rx="${fx(pn.pill.h / 2)}" fill="#fff" stroke="#222" stroke-width="${fx(pn.fs * 0.07)}"/><text x="${fx(C[0] - textW(pn.n, pn.fs) / 2)}" y="${fx(C[1] + pn.fs * 0.36)}" font-size="${fx(pn.fs)}" font-family='${font().css}' font-weight="bold" fill="#111">${pn.n}</text></g>`;
+      } else {
       const rotA = screen ? ` transform="rotate(${fx(-p.rot)} ${fx(C[0])} ${fx(C[1])})"` : '';
       s += `<g class="pnum"${rotA}><circle cx="${fx(C[0])}" cy="${fx(C[1])}" r="${fx(pn.r)}" fill="#fff" stroke="#222" stroke-width="${fx(pn.fs * 0.07)}"/><text x="${fx(C[0] - textW(pn.n, pn.fs) / 2)}" y="${fx(C[1] + pn.fs * 0.36)}" font-size="${fx(pn.fs)}" font-family='${font().css}' font-weight="bold" fill="#111">${pn.n}</text></g>`;
+      }
     }
   }
   // nummers
@@ -3143,6 +3147,7 @@ function pieceNumGeom(p) {
   const d = p.d; if (!d.numPos || !S.pieceNo) return null;
   const n = S.pieceNo[p.id], fs = d.numPos.fs || Math.max(Math.min(1.8, S.set.pieceNumSize), Math.min(S.set.pieceNumSize, d.numPos.inr * 1.25));
   const w = String(n).length * font().k * fs;
+  if (d.numPos.pill) return { n, fs, r: (w + fs * PILL_PAD) / 2, pill: { w: w + fs * PILL_PAD, h: fs * PILL_H } };
   return { n, fs, r: Math.max(fs * 0.66, w / 2 + fs * 0.28) };
 }
 function pageRects() {
@@ -3760,8 +3765,14 @@ function pdfPageOps(pageIdx, k, total) {
       const pn = pieceNumGeom(p);
       if (pn) {
         const C = W([d.numPos.x, d.numPos.y]), cx = C[0] - x0, cy = C[1] - y0, r = pn.r, kk = 0.5523 * r;
+        if (pn.pill) {
+          const ang = upright(d.numPos.ang + p.rot);
+          o.push(`[] 0 d 1 1 1 rg 0.133 0.133 0.133 RG ${fx(pn.fs * 0.07)} w ${path(pillPts(C[0], C[1], pn.pill.w, pn.pill.h, ang), true)} B`);
+          text(pn.n, C[0], C[1], pn.fs, ang, [17, 17, 17], '/F2');
+        } else {
         o.push(`[] 0 d 1 1 1 rg 0.133 0.133 0.133 RG ${fx(pn.fs * 0.07)} w ${fx(cx + r)} ${fx(cy)} m ${fx(cx + r)} ${fx(cy + kk)} ${fx(cx + kk)} ${fx(cy + r)} ${fx(cx)} ${fx(cy + r)} c ${fx(cx - kk)} ${fx(cy + r)} ${fx(cx - r)} ${fx(cy + kk)} ${fx(cx - r)} ${fx(cy)} c ${fx(cx - r)} ${fx(cy - kk)} ${fx(cx - kk)} ${fx(cy - r)} ${fx(cx)} ${fx(cy - r)} c ${fx(cx + kk)} ${fx(cy - r)} ${fx(cx + r)} ${fx(cy - kk)} ${fx(cx + r)} ${fx(cy)} c h B`);
         text(pn.n, C[0], C[1], pn.fs, 0, [17, 17, 17], '/F2');
+        }
       }
     }
   }
@@ -4067,7 +4078,7 @@ setTool('select');
 const qp = new URLSearchParams(location.search).get('model');
 if (qp) fetch(qp).then(r => r.arrayBuffer()).then(b => loadModelBuffer(b, qp.split('/').pop(), null)).catch(e => toast(tr('Loading failed: ') + e.message));
 window.__S = S;
-window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3 };
+window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps };
 </script>
 </body>
 </html>
