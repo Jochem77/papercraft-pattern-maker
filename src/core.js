@@ -928,7 +928,7 @@ function growTiny(m, joined, o, relax, shapeOnly) {
       if (sKey && failed.has(sKey)) continue;
       if (!fiddly(m, joined, cp, S, o, size[S.id], shapeOnly)) continue;
       const inS = new Set(S.faces);
-      let done = false;
+      let done = false, waited = false; // waited: a neighbour was busy this pass, try again next pass
       // candidate edges: to the neighbour with the longest shared border first (a narrow strip
       // joins along its long side), then the least sharp fold
       const cand = [], shared = new Map();
@@ -938,7 +938,7 @@ function growTiny(m, joined, o, relax, shapeOnly) {
         {
           const E = m.E[e];
           const g = otherFace(E, f), N = cp.pieces[cp.pieceOf[g]];
-          if (touched.has(N.id)) continue;
+          if (touched.has(N.id)) { waited = true; continue; }
           // the whole tiny piece joins the neighbour, when that fits
           joined[e] = 1;
           if (validateComponent(m, joined, f, o)) { touched.add(S.id); touched.add(N.id); moved++; done = true; break; }
@@ -967,7 +967,19 @@ function growTiny(m, joined, o, relax, shapeOnly) {
         }
         if (done) break;
       }
-      if (!done && sKey) failed.add(sKey);
+      // last resort for a piece of 1 or 2 faces: join it to a neighbour even when that goes over
+      // o.maxFaces by those faces (a sliver on its own is worse than a slightly larger piece)
+      if (!done && o.maxFaces > 0 && size[S.id] <= 2) {
+        const o2 = { ...o, maxFaces: o.maxFaces + size[S.id] };
+        for (const [f, e] of cand) {
+          const N = cp.pieces[cp.pieceOf[otherFace(m.E[e], f)]];
+          if (touched.has(N.id)) { waited = true; continue; }
+          joined[e] = 1;
+          if (validateComponent(m, joined, f, o2)) { touched.add(S.id); touched.add(N.id); moved++; done = true; break; }
+          joined[e] = 0;
+        }
+      }
+      if (!done && !waited && sKey) failed.add(sKey);
     }
     moves += moved;
     if (!moved) break;

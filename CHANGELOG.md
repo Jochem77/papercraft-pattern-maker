@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Fewer slivers between sharp folds**: a narrow or tiny piece next to a neighbour that was just changed is now tried again later, instead of being given up. When nothing else works, a piece of 1 or 2 faces may join a neighbour even if that neighbour then has 1 or 2 faces more than the maximum. In the test snake, a sliver 1.7 mm wide and 40 mm long (one triangle between a colour border and two sharp folds) now joins its neighbour.
 - **6 and 9 underlined**: edge and piece numbers that read as another number upside down (6, 9, 16, 91, 86, 98 …) get a line under them, on screen, in the PDF and in the plotter SVG.
 - **Plotter SVG layer order**: the score (blue) and perforation (green) layers now come first and the cut lines (red) last. Silhouette Studio lists the line colours in that order and cuts from top to bottom, so pieces are scored before they are cut loose. Faces in the print layer no longer get a white fill on white paper, so the score lines stay visible in Studio.
 - **Cutting plotter files** are now always one ZIP with the SVG per page, the PDF with the same pages in the same order (they belong together when printing and cutting) and the project file.
