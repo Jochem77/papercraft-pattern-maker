@@ -144,6 +144,7 @@ dialog kbd{background:#f3f4f6;border:1px solid var(--line);border-radius:4px;pad
 #sheet .print-area{fill:none;stroke:#9db4e8;stroke-dasharray:4 3;stroke-width:1px;vector-effect:non-scaling-stroke}
 #sheet .pagelabel{fill:#7b8494;font-size:6px}
 #sheet line,#sheet polyline,#sheet polygon.tabf{vector-effect:non-scaling-stroke}
+#sheet line.ul{vector-effect:none} /* line under 6 / 9: thickness in mm, like the text */
 #sheet .cut{stroke-width:1.3px}
 #sheet .fold{stroke-width:1px}
 #sheet .facefill{stroke-width:.6px}
@@ -1431,7 +1432,7 @@ function flipAmbiguous(n) {
 function underlineSvg(n, cx, cy, fs, col, transform) {
   if (!flipAmbiguous(n)) return '';
   const w = textW(n, fs) * 0.9, y = cy + fs * 0.52;
-  return `<line x1="${fx(cx - w / 2)}" y1="${fx(y)}" x2="${fx(cx + w / 2)}" y2="${fx(y)}" stroke="${col}" stroke-width="${fx(Math.max(0.12, fs * 0.08))}" stroke-linecap="round"${transform ? ` transform="${transform}"` : ''}/>`;
+  return `<line class="ul" x1="${fx(cx - w / 2)}" y1="${fx(y)}" x2="${fx(cx + w / 2)}" y2="${fx(y)}" stroke="${col}" stroke-width="${fx(Math.max(0.15, fs * 0.1))}" stroke-linecap="round"${transform ? ` transform="${transform}"` : ''}/>`;
 }
 const lum = c => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]);
 function faceFill(f) { return S.faceColor ? S.faceColor[f] : null; }
@@ -2520,7 +2521,7 @@ function pdfPageOps(pageIdx, k, total) {
     o.push(`${rgbOp(col, 'rg')} BT ${fnt} ${fx(fs)} Tf ${fx(c)} ${fx(sn)} ${fx(sn)} ${fx(-c)} ${fx(ox - x0)} ${fx(oy - y0)} Tm (${pdfTxt(str)}) Tj ET`);
     if (flipAmbiguous(str)) { // line under 6 / 9 and the like
       const mx = cx - sn * 0.52 * fs, my = cy + c * 0.52 * fs, hw = w * 0.45;
-      o.push(`[] 0 d 1 J ${rgbOp(col, 'RG')} ${fx(Math.max(0.12, fs * 0.08))} w ${fx(mx - c * hw - x0)} ${fx(my - sn * hw - y0)} m ${fx(mx + c * hw - x0)} ${fx(my + sn * hw - y0)} l S`);
+      o.push(`[] 0 d 1 J ${rgbOp(col, 'RG')} ${fx(Math.max(0.15, fs * 0.1))} w ${fx(mx - c * hw - x0)} ${fx(my - sn * hw - y0)} m ${fx(mx + c * hw - x0)} ${fx(my + sn * hw - y0)} l S`);
     }
   };
   for (const p of S.cp.pieces) {
