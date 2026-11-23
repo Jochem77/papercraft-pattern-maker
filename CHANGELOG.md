@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Plotter SVG layer order**: the score (blue) and perforation (green) layers now come first and the cut lines (red) last. Silhouette Studio lists the line colours in that order and cuts from top to bottom, so pieces are scored before they are cut loose. Faces in the print layer no longer get a white fill on white paper, so the score lines stay visible in Studio.
 - **Cutting plotter files** are now always one ZIP with the SVG per page, the PDF with the same pages in the same order (they belong together when printing and cutting) and the project file.
 
 ## [1.0.0-beta.3] - 2026-11-23

@@ -3305,13 +3305,13 @@ function pieceBody(p, mode, opt) {
   let s = '';
   // vlakken
   for (const fc of d.faces) {
-    let fill = fc.col && colors ? rgb(fc.col) : '#fff';
+    let fill = fc.col && colors ? rgb(fc.col) : (opt.noWhite ? 'none' : '#fff');
     if (screen && fc.bad) fill = '#ff8a80';
     s += `<polygon class="facefill" data-f="${fc.f}" points="${pts(fc.pts)}" fill="${fill}" stroke="${fill}" stroke-width="0.12" stroke-linejoin="round"/>`;
   }
   // stroken
   for (const t of d.tabs) {
-    const fill = screen && t.bad ? '#ffb4a8' : (screen ? '#f1f3f6' : '#fff');
+    const fill = screen && t.bad ? '#ffb4a8' : (screen ? '#f1f3f6' : (opt.noWhite ? 'none' : '#fff'));
     const sh = t.shape || t.poly;
     s += `<polygon class="tabf" points="${pts(sh)}" fill="${fill}" stroke="none"/>`;
     if (opt.cut) s += `<polyline class="cut" points="${pts(sh)}" ${LS.cut}/>`;
@@ -4122,7 +4122,7 @@ function plotterSVG(pageIdx) {
     return o;
   };
   for (const p of pieces) {
-    printL += pieceBody(p, 'world', { cut: false, folds: S.set.foldPrint, labels: true });
+    printL += pieceBody(p, 'world', { cut: false, folds: S.set.foldPrint, labels: true, noWhite: true }); // white paper: no white fill, so the score lines below stay visible
     for (const l of cutLoops(p)) cutL += `<path d="M${l.path.map(sh).join(' L')}${l.closed ? ' Z' : ''}" fill="none" stroke="#FF0000" stroke-width="0.25"/>`;
     // A score line works when the fold bends away from it (mountain fold seen from the printed
     // side); a fold towards the score line is perforated in mode 'mixed'.
@@ -4131,11 +4131,14 @@ function plotterSVG(pageIdx) {
       else perfL += perf(f.a, f.b);
     }
   }
+  // Layer order matters: Silhouette Studio lists the line colours in the order they appear and
+  // cuts the list from top to bottom. So: score (blue) and perforate (green) first, then the
+  // print layer, and the cut lines (red) last, so a piece is not cut loose before it is scored.
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${PW}mm" height="${PH}mm" viewBox="0 0 ${PW} ${PH}">
-<g id="print" inkscape:groupmode="layer" inkscape:label="print" transform="translate(${-x0} ${-y0})">${printL}</g>
-${mode === 'score' || mode === 'mixed' ? `<g id="score" inkscape:groupmode="layer" inkscape:label="${tr('score')}">${foldL}</g>` : ''}${mode === 'perf' || mode === 'mixed' ? `
-<g id="perforate" inkscape:groupmode="layer" inkscape:label="${tr('perforate')}">${perfL}</g>` : ''}
+${mode === 'score' || mode === 'mixed' ? `<g id="score" inkscape:groupmode="layer" inkscape:label="${tr('score')}">${foldL}</g>
+` : ''}${mode === 'perf' || mode === 'mixed' ? `<g id="perforate" inkscape:groupmode="layer" inkscape:label="${tr('perforate')}">${perfL}</g>
+` : ''}<g id="print" inkscape:groupmode="layer" inkscape:label="print" transform="translate(${-x0} ${-y0})">${printL}</g>
 <g id="cut" inkscape:groupmode="layer" inkscape:label="${tr('cut layer')}">${cutL}</g>${silMarkRects().length ? `
 <g id="registration" inkscape:groupmode="layer" inkscape:label="${tr('registration marks (do not cut)')}">${silMarkRects().map(r => `<rect x="${fx(r[0])}" y="${fx(r[1])}" width="${fx(r[2])}" height="${fx(r[3])}" fill="#000"/>`).join('')}</g>` : ''}
 </svg>`;
