@@ -248,6 +248,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
       <div class="mhead" data-i18n>Tool</div>
       <button class="mi" data-cmd="tool:select" data-check="tool:select"><span class="ck"></span><span data-i18n>Select</span><span class="ks">S</span></button>
       <button class="mi" data-cmd="tool:cut" data-check="tool:cut"><span class="ck"></span><span data-i18n>Cut / join</span><span class="ks">K</span></button>
+      <button class="mi" data-cmd="tool:object" data-check="tool:object" data-need="model"><span class="ck"></span><span data-i18n>Objects</span><span class="ks">O</span></button>
       <button class="mi" data-cmd="tool:paint" data-check="tool:paint" data-need="model"><span class="ck"></span><span data-i18n>Paint colors</span><span class="ks">B</span></button>
       <div class="msep"></div>
       <div class="mhead" data-i18n>Selected piece</div>
@@ -402,7 +403,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
   <h4>3D view (left)</h4>
   <ul>
     <li>Left drag = rotate, right drag = pan, scroll = zoom</li>
-    <li>Choose a tool in the toolbar: <b>Select</b> (<kbd>S</kbd>), <b>Cut / join</b> (<kbd>K</kbd>) or <b>Paint colors</b> (<kbd>B</kbd>)</li>
+    <li>Choose a tool in the toolbar: <b>Select</b> (<kbd>S</kbd>), <b>Cut / join</b> (<kbd>K</kbd>), <b>Objects</b> (<kbd>O</kbd>, make separate parts larger or smaller) or <b>Paint colors</b> (<kbd>B</kbd>)</li>
     <li>Select: click a piece; the other pieces fade and the piece gets a blue outline. Selecting in the pattern turns the 3D view towards the piece</li>
     <li>Cut / join: <b>click near an edge</b> (it lights up orange)</li>
     <li><kbd>Shift</kbd> + click on a cut edge: move the glue tab to the other side</li>
@@ -442,7 +443,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
   <h4>3D-weergave (links)</h4>
   <ul>
     <li>Linker muisknop slepen = draaien, rechts slepen = schuiven, scrollen = zoomen</li>
-    <li>Kies in de werkbalk het gereedschap: <b>Selecteren</b> (<kbd>S</kbd>), <b>Knippen / verbinden</b> (<kbd>K</kbd>) of <b>Kleuren</b> (<kbd>B</kbd>)</li>
+    <li>Kies in de werkbalk het gereedschap: <b>Selecteren</b> (<kbd>S</kbd>), <b>Knippen / verbinden</b> (<kbd>K</kbd>), <b>Objecten</b> (<kbd>O</kbd>, losse delen groter of kleiner maken) of <b>Kleuren</b> (<kbd>B</kbd>)</li>
     <li>Selecteren: klik op een stuk; de rest wordt lichter en het stuk krijgt een blauwe rand. Selecteer je in het patroon, dan draait de 3D-weergave het stuk naar je toe</li>
     <li>Knippen / verbinden: <b>klik bij een rand</b> (de rand licht oranje op)</li>
     <li><kbd>Shift</kbd> + klik op een knip-rand: plakstrook naar de andere kant</li>
@@ -648,7 +649,7 @@ const NL = {
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
-  'Undo': 'Ongedaan maken', 'Redo': 'Opnieuw', 'Tool': 'Gereedschap', 'Select': 'Selecteren', 'Cut / join': 'Knippen / verbinden', 'Paint colors': 'Kleuren',
+  'Undo': 'Ongedaan maken', 'Redo': 'Opnieuw', 'Tool': 'Gereedschap', 'Select': 'Selecteren', 'Objects': 'Objecten', 'Cut / join': 'Knippen / verbinden', 'Paint colors': 'Kleuren',
   'Selected piece': 'Geselecteerd stuk', 'Rotate 15° counterclockwise': 'Draai 15° linksom', 'Rotate 15° clockwise': 'Draai 15° rechtsom', 'Rotate 90°': 'Draai 90°', 'Clear selection': 'Selectie opheffen',
   'Unfold automatically': 'Automatisch knippen', 'Rearrange pieces on pages': 'Opnieuw indelen op pagina’s', 'Fix tiny color islands': 'Mini-vlakjes herstellen (kleur)',
   'Dimensions…': 'Afmetingen…', 'Paper & layout…': 'Papier & indeling…', 'Glue tabs…': 'Plakstrookjes…',
