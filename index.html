@@ -1918,7 +1918,7 @@ const NL = {
   'Tab and flap (no glue, hidden)': 'Lip en randje (zonder lijm, onzichtbaar)',
   'Faces': 'Vlakken', 'Numbers only on tabs': 'Nummers alleen op stroken',
   'Piece numbers go on a glue tab or flap, and edge numbers are only printed on the tabs and flaps. The faces stay clean, so the printed side can be the outside of the model (for example to score on the outside). Tip: also switch off Print fold lines.': 'Stuknummers komen op een plakstrook of randje, en randnummers alleen op de stroken en randjes. De vlakken blijven schoon, zodat de bedrukte kant de buitenkant van het model kan zijn (bijvoorbeeld om aan de buitenkant te rillen). Tip: zet ook Vouwlijnen printen uit.',
-  'Skip folds below': 'Vouwen overslaan onder', 'Folds that bend less than this are not scored or perforated: they fold easily by hand. 0 = all folds. Tab folds are always included.': 'Vouwen die minder knikken dan dit worden niet gerild of geperforeerd: die vouw je makkelijk met de hand. 0 = alle vouwen. Vouwen van stroken worden altijd meegenomen.',
+  'Skip folds below': 'Vouwen overslaan onder', 'Folds that bend less than this are not scored, perforated or printed: they fold easily by hand. 0 = all folds. Tab folds are always included.': 'Vouwen die minder knikken dan dit worden niet gerild, geperforeerd of geprint: die vouw je makkelijk met de hand. 0 = alle vouwen. Vouwen van stroken worden altijd meegenomen.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2069,7 +2069,7 @@ const TABS = [
   { id: 'plotter', icon: '🔪', title: 'Cutting plotter', intro: 'Settings for the cutting plotter export and Silhouette Print & Cut.', items: [
     { section: 'Cut file (SVG)' },
     { k: 'foldMode', label: 'Fold lines', type: 'select', opts: { score: 'Score (own layer)', perf: 'Perforate (dashes)', mixed: 'Score + perforate', none: 'Leave out' }, help: 'Score + perforate: folds that bend away from the printed side are scored; folds that bend towards it are perforated, because a score line on the inside of a fold folds badly.' },
-    { k: 'scoreMinDeg', label: 'Skip folds below', type: 'number', unit: '°', min: 0, max: 45, step: 1, help: 'Folds that bend less than this are not scored or perforated: they fold easily by hand. 0 = all folds. Tab folds are always included.' },
+    { k: 'scoreMinDeg', label: 'Skip folds below', type: 'number', unit: '°', min: 0, max: 45, step: 1, help: 'Folds that bend less than this are not scored, perforated or printed: they fold easily by hand. 0 = all folds. Tab folds are always included.' },
     { k: 'perfCut', label: 'Perforation: cut', type: 'number', unit: 'mm', min: 0.5, max: 10, step: 0.1, help: 'Length of each cut of a perforated fold line.' },
     { k: 'perfGap', label: 'Perforation: bridge', type: 'number', unit: 'mm', min: 0.3, max: 5, step: 0.1, help: 'Uncut part between two cuts. Larger = stronger, but stiffer to fold. Photo card: about 1 mm.' },
     { section: 'Silhouette Print & Cut' },
@@ -3115,7 +3115,7 @@ function pieceBody(p, mode, opt) {
     s += `<polygon class="tabf" points="${pts(sh)}" fill="${fill}" stroke="none"/>`;
     if (opt.cut) s += `<polyline class="cut" points="${pts(sh)}" ${LS.cut}/>`;
   }
-  if (opt.folds) for (const f of d.folds) s += ln(f.a, f.b, `class="fold" ${LS[f.type]}`);
+  if (opt.folds) for (const f of d.folds) if (screen || !skipFold(f)) s += ln(f.a, f.b, `class="fold" ${LS[f.type]}`);
   if (opt.cut) for (const c of d.cuts) s += ln(c.a, c.b, `class="cut" ${LS.cut}${c.open ? ' stroke-opacity="0.9"' : ''}`);
   // stuknummer in een rondje (altijd horizontaal)
   if (st.pieceNums && opt.labels && d.numPos && S.pieceNo) {
@@ -3752,7 +3752,7 @@ function pdfPageOps(pageIdx, k, total) {
     o.push('[] 0 d 0.12 w');
     for (const fc of d.faces) { const col = fc.col && colors ? fc.col : [255, 255, 255]; o.push(`${rgbOp(col, 'rg')} ${rgbOp(col, 'RG')} ${path(fc.pts.map(W), true)} B`); }
     for (const t of d.tabs) o.push(`1 1 1 rg ${path((t.shape || t.poly).map(W), true)} f`);
-    if (st.foldPrint) for (const f of d.folds) o.push(`${STY[f.type]} ${path([W(f.a), W(f.b)])} S`);
+    if (st.foldPrint) for (const f of d.folds) if (!skipFold(f)) o.push(`${STY[f.type]} ${path([W(f.a), W(f.b)])} S`);
     o.push(STY.cut);
     for (const t of d.tabs) o.push(`${path((t.shape || t.poly).map(W))} S`);
     for (const c of d.cuts) o.push(`${path([W(c.a), W(c.b)])} S`);
@@ -3889,11 +3889,16 @@ function cutLoops(p) {
   }
   return loops;
 }
+// Nearly flat folds (below "Skip folds below") are left out of everything that goes on paper:
+// scoring, perforation and printed fold lines. The screen still shows them.
+function skipFold(f) {
+  const min = (+S.set.scoreMinDeg || 0) * Math.PI / 180;
+  return !f.tab && min > 0 && S.mesh.E[f.e].bend < min;
+}
 function foldSegs(p) {
   const out = [];
-  const min = (+S.set.scoreMinDeg || 0) * Math.PI / 180;
   for (const f of p.d.folds) {
-    if (!f.tab && min > 0 && S.mesh.E[f.e].bend < min) continue; // nearly flat: no need to score
+    if (skipFold(f)) continue;
     out.push({ a: toWorld(p, f.a), b: toWorld(p, f.b), type: f.type });
   }
   return out;
