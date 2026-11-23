@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Maximum faces per piece** (*Settings → Automatic unfolding*, default 8): automatic unfolding makes no piece with more faces than this. A flat area of several triangles counts as one face. 0 = no limit.
+
 ## [1.0.0-beta.3] - 2026-11-23
 
 ### Added

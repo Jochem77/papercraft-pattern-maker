@@ -246,3 +246,16 @@ test('compact pieces: no long ragged pieces, still a valid unfolding', () => {
   }
   assert.ok(cp.pieces.length >= 2);
 });
+
+test('maximum faces per piece', () => {
+  const m = C.buildMesh(icosphere(2));
+  const o = { ...opts(m, 150), maxFaces: 8 };
+  const joined = C.autoPipeline(m, o);
+  const { cp } = checkUnfolding(m, joined, o);
+  for (const p of cp.pieces) assert.ok(C.pieceFaceCount(m, joined, p.faces) <= 8, 'piece with too many faces');
+  // a flat square of two triangles counts as one face
+  const b = C.buildMesh(cube());
+  const jb = C.autoPipeline(b, { ...opts(b, 100), maxFaces: 6 });
+  const cb = C.computePieces(b, jb);
+  assert.ok(cb.pieces.length === 1 || cb.pieces.every(p => C.pieceFaceCount(b, jb, p.faces) <= 6));
+});

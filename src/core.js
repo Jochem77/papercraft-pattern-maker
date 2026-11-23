@@ -615,6 +615,19 @@ function layoutTabs(m, cp, lmm, joined, opts) {
   return { tabFace, tabs, conflicts, tabs2 };
 }
 
+// Number of faces of a piece as you see them: triangles joined by a flat edge count once.
+function pieceFaceCount(m, joined, faces) {
+  const inP = new Set(faces), par = new Map(faces.map(f => [f, f]));
+  const find = x => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
+  let n = faces.length;
+  for (const f of faces) for (const e of m.FE[f]) {
+    const E = m.E[e]; if (!E.m || !E.flat || !joined[e]) continue;
+    const g = E.f[0] === f ? E.f[1] : E.f[0]; if (!inP.has(g)) continue;
+    const a = find(f), b = find(g); if (a !== b) { par.set(a, b); n--; }
+  }
+  return n;
+}
+
 // Overlap van vlakken binnen een stuk.
 function selfOverlaps(cp, lmm) {
   const bad = new Set(), pairs = [];
@@ -702,6 +715,13 @@ function validateComponent(m, joined, seed, o, info) {
   let ok = true;
   const conf = info ? new Set() : null;
   if (info) { info.faces = faces; info.parent = parent; info.conflicts = conf; info.tooBig = false; info.ring = false; }
+  // o.maxFaces: at most this many faces per piece. Triangles joined by a flat edge form one face
+  // (a square of two triangles counts once), so: triangles minus flat edges in the tree.
+  if (o.maxFaces > 0 && faces.length > o.maxFaces) {
+    let flatTree = 0;
+    for (const e of tree) if (m.E[e].flat) flatTree++;
+    if (faces.length - flatTree > o.maxFaces) { if (info) info.tooBig = true; return false; }
+  }
   // o.isoMax: reject long, ragged pieces. Compactness = outline² / (4π · area): 1 for a disc,
   // about 4 for a 1:10 strip. Small pieces are always fine.
   // (not while cleaning up tiny pieces, which is checked with info: a tiny loose piece is worse)
@@ -1318,7 +1338,7 @@ function simplifyMesh(pos, target, key) {
 const api = {
   nestLayout, simplifyMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
-  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges,
+  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,
   selfOverlaps, treePath, splitEdge, otherFace, hslToRgb, validateComponent, remergePass, repair, scoreJoined
 };

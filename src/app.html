@@ -477,7 +477,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2,
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100,
+  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
 };
 const S = {
@@ -593,6 +593,8 @@ const NL = {
   'Faces': 'Vlakken', 'Numbers only on tabs': 'Nummers alleen op stroken',
   'Piece numbers go on a glue tab or flap, and edge numbers are only printed on the tabs and flaps. The faces stay clean, so the printed side can be the outside of the model (for example to score on the outside). Tip: also switch off Print fold lines.': 'Stuknummers komen op een plakstrook of randje, en randnummers alleen op de stroken en randjes. De vlakken blijven schoon, zodat de bedrukte kant de buitenkant van het model kan zijn (bijvoorbeeld om aan de buitenkant te rillen). Tip: zet ook Vouwlijnen printen uit.',
   'Skip folds below': 'Vouwen overslaan onder', 'Folds that bend less than this are not scored, perforated or printed: they fold easily by hand. 0 = all folds. Tab folds are always included.': 'Vouwen die minder knikken dan dit worden niet gerild, geperforeerd of geprint: die vouw je makkelijk met de hand. 0 = alle vouwen. Vouwen van stroken worden altijd meegenomen.',
+  'Maximum faces per piece': 'Maximaal aantal vlakken per stuk',
+  'Smaller pieces with fewer faces are easier to fold. A flat area made of several triangles (for example a square) counts as one face. 0 = no limit.': 'Kleinere stukken met minder vlakken zijn makkelijker te vouwen. Een plat vlak van meerdere driehoeken (bijvoorbeeld een vierkant) telt als één vlak. 0 = geen grens.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -721,6 +723,7 @@ const TABS = [
     { k: 'sharpDeg', label: 'Sharp from', type: 'number', unit: '°', min: 10, max: 170, step: 5, dep: 'sharpCut', help: 'Folds of this angle or more are cut. 0° = flat, 90° = the corner of a box. Lower = more cuts.' },
     { k: 'maxPieceOn', label: 'Limit piece size', type: 'check', help: 'Smaller pieces are easier to fold and glue, but there are more of them.' },
     { k: 'maxPiece', label: 'Maximum size', type: 'number', unit: 'mm', min: 30, max: 400, step: 5, dep: 'maxPieceOn', help: 'Every piece (with its glue tabs) fits in a square of this size.' },
+    { k: 'maxFaces', label: 'Maximum faces per piece', type: 'number', min: 0, max: 500, step: 1, help: 'Smaller pieces with fewer faces are easier to fold. A flat area made of several triangles (for example a square) counts as one face. 0 = no limit.' },
     { k: 'cutColors', label: 'Cut along color borders', type: 'check', help: 'Every piece gets a single color – useful for colored paper.' },
     { k: 'mergeIslands', label: 'Merge tiny color islands', type: 'check', dep: 'cutColors', help: 'Color islands of 1–2 triangles join a neighbouring piece (their color is printed) instead of becoming a tiny piece.' },
     { k: 'groupColors', label: 'Pages per color', type: 'check', help: 'Each color gets its own pages.' }],
@@ -824,7 +827,7 @@ function settingsDone() {
   applySettings(keys);
 }
 // Apply several changed settings at once: unfold again at most once.
-const RELAYOUT = ['pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
+const RELAYOUT = ['maxFaces', 'pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
 async function applySettings(keys) {
   if (keys.includes('lang')) applyLanguage();
   if (!S.mesh) return;
@@ -900,7 +903,7 @@ function applySetting(k) {
   if (k === 'pieceGap') { S.world = null; refresh(); fitView(); return; }
   if (k.startsWith('sil')) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
   if (['paper', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
-  if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
+  if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'maxFaces', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
   if (k === 'pageCols') {
     const old = S.prevCols || 3, nc = pageCols();
     for (const p of S.cp.pieces) if (p.page >= 0) { const a = pageOrigin(p.page, old), b = pageOrigin(p.page, nc); p.x += b[0] - a[0]; p.y += b[1] - a[1]; }
@@ -1267,7 +1270,7 @@ function autoOptions() {
   if (ob.length) { W -= ob[0].w + 1; H -= ob[0].h + 1; }
   if (st.maxPieceOn && st.maxPiece > 0) { W = Math.min(W, st.maxPiece); H = Math.min(H, st.maxPiece); }
   return { scale: S.scale, W, H, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
-    sharpDeg: st.sharpCut ? st.sharpDeg : 0, isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
+    sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
 }
 function warnRecut() {
   const bad = S.cp ? S.cp.pieces.filter(p => p.off || p.big).length : 0;

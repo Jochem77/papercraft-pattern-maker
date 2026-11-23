@@ -22,7 +22,7 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
    - er is geen overlap;
    - elk plakstrookje heeft genoeg ruimte.
 
-   Vind je het model lastig te bouwen? Zet dan onder **Instellingen → Automatisch knippen** de optie **Knippen bij scherpe vouwen** aan: scherpe hoeken worden dan een knip met plakstrook in plaats van een vouw. Met **Stukgrootte beperken** worden de stukken kleiner. Bij **Vorm van de stukken** kies je tussen *Groot* (zo min mogelijk stukken), *Compact* (standaard: geen lange armen of rafelige randen) en *Zeer compact*.
+   Vind je het model lastig te bouwen? Zet dan onder **Instellingen → Automatisch knippen** de optie **Knippen bij scherpe vouwen** aan: scherpe hoeken worden dan een knip met plakstrook in plaats van een vouw. Met **Stukgrootte beperken** worden de stukken kleiner. Met **Maximaal aantal vlakken per stuk** (standaard 8) bepaal je hoeveel vlakken een stuk mag hebben; een plat vlak van meerdere driehoeken telt als één. Bij **Vorm van de stukken** kies je tussen *Groot* (zo min mogelijk stukken), *Compact* (standaard: geen lange armen of rafelige randen) en *Zeer compact*.
 
    **Effen (foto)karton?** Zet onder **Instellingen → Printen & PDF** de optie **Bedrukte kant is de binnenkant** aan. De nummers en lijnen komen dan aan de binnenkant en de buitenkant blijft schoon. Je print en snijdt nog steeds aan één kant; de stukken liggen gespiegeld op het papier. Kies bij **Snijplotter → Vouwlijnen** dan **Rillen + perforeren**: vouwen die naar de bedrukte kant toe buigen worden geperforeerd (groen in de SVG), de andere gerild (blauw).
 
