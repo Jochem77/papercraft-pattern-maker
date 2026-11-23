@@ -3814,7 +3814,7 @@ function setHover(e) {
   const hi = $('hoverInfo');
   if (e < 0 || !S.mesh) { hi.textContent = ''; return; }
   const E = S.mesh.E[e];
-  const state = !E.m ? tr('open edge') : S.joined[e] ? (E.flat ? tr('flat (Alt+click to cut)') : tr('fold ({k})', { k: tr(foldType(E.convex) === 'm' ? 'mountain' : 'valley') })) : tr('cut · no. {n}', { n: S.num[e] });
+  const state = !E.m ? tr('open edge') : S.joined[e] ? (E.flat ? tr('flat (Alt+click to cut)') : tr('fold ({k})', { k: tr(foldType(E.convex) === 'm' ? 'mountain' : 'valley') }) + ' · ' + (E.bend * 180 / Math.PI).toFixed(1) + '°') : tr('cut · no. {n}', { n: S.num[e] });
   hi.textContent = tr('Edge: {s} · length {l} mm · angle {a}°', { s: state, l: fx(E.len * S.scale), a: Math.round(E.bend * 180 / Math.PI) });
 }
 function drawHover2D() {
