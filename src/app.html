@@ -500,7 +500,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', pairMin: 0, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
+  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', pairMin: 0, zipSeg: 15, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
 };
 const S = {
@@ -649,13 +649,19 @@ const NL = {
   'Click an object in the 3D view or in this list. A new size unfolds the model again.': 'Klik op een object in de 3D-weergave of in deze lijst. Een nieuwe grootte vouwt het model opnieuw uit.',
   'Name of this material: on the pages and in the file name of its PDF': 'Naam van dit materiaal: staat op de pagina’s en in de bestandsnaam van de PDF',
   'Two flaps glued together': 'Twee flapjes op elkaar plakken',
-  'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. The pieces are made so that both flaps fit; only on pieces you cut by hand can a normal glue tab remain where a second flap does not fit.': 'Twee flapjes op elkaar plakken: beide stukken krijgen een flapje langs de naad. Vouw beide flapjes naar binnen en plak ze op elkaar. Het randnummer staat op allebei, dus op de vlakken hoeft niets geprint te worden en de buitenkant kan gerild worden. De stukken worden zo gemaakt dat beide flapjes passen; alleen bij stukken die je zelf knipt kan er een gewone plakstrook overblijven waar geen tweede flapje past.',
+  'Zipper: on long seams the tabs alternate between the two pieces, each part glued under the other face. Short seams get one normal glue tab. Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. The pieces are made so that both flaps fit; only on pieces you cut by hand can a normal glue tab remain where a second flap does not fit.': 'Ritssluiting: bij lange naden wisselen de plakstrookjes om en om tussen de twee stukken; elk deel plak je onder het andere vlak. Korte naden krijgen één gewone plakstrook. Twee flapjes op elkaar plakken: beide stukken krijgen een flapje langs de naad. Vouw beide flapjes naar binnen en plak ze op elkaar. Het randnummer staat op allebei, dus op de vlakken hoeft niets geprint te worden en de buitenkant kan gerild worden. De stukken worden zo gemaakt dat beide flapjes passen; alleen bij stukken die je zelf knipt kan er een gewone plakstrook overblijven waar geen tweede flapje past.',
   'Two flaps from seam length': 'Twee flapjes vanaf naadlengte',
   'Seams shorter than this get one normal glue tab instead of two flaps: stronger, and less bulk inside narrow parts. 0 = two flaps on every seam.': 'Naden korter dan dit krijgen één gewone plakstrook in plaats van twee flapjes: steviger, en minder dik binnenin smalle delen. 0 = twee flapjes bij elke naad.',
   'flap (on both pieces)': 'flapje (op beide stukken)',
   'Seams shorter than {n} mm: one glue tab': 'Naden korter dan {n} mm: één plakstrook',
   'Every seam: two flaps': 'Elke naad: twee flapjes',
   ' · {a} seams with two flaps, {b} with one glue tab': ' · {a} naden met twee flapjes, {b} met één plakstrook',
+  'Zipper (alternating tabs)': 'Ritssluiting (om en om)',
+  'Zipper part length': 'Lengte ritsdeel',
+  'Length of each alternating tab. Seams of at least twice this length become a zipper; shorter seams get one normal glue tab.': 'Lengte van elk om-en-om-strookje. Naden van minstens twee keer deze lengte worden een ritssluiting; kortere naden krijgen één gewone plakstrook.',
+  ' · {a} seams as a zipper, {b} with one glue tab': ' · {a} naden als ritssluiting, {b} met één plakstrook',
+  'tab (alternating)': 'strookje (om en om)',
+  'Seams of at least {n} mm: zipper, parts of {m} mm': 'Naden vanaf {n} mm: ritssluiting, delen van {m} mm',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -779,8 +785,9 @@ const TABS = [
     { k: 'tabH', label: 'Tab width', type: 'number', unit: 'mm', min: 2, max: 25, step: 0.5, help: 'How far a glue tab sticks out.' },
     { k: 'tabAngle', label: 'Angle', type: 'number', unit: '°', min: 15, max: 85, step: 1, help: 'Slope of the sides; smaller = more pointed.' },
     { k: 'minTab', label: 'Minimum width', type: 'number', unit: '%', min: 30, max: 100, step: 5, help: 'Where space is tight, a tab may become this much narrower (or more pointed).' },
-    { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', pair: 'Two flaps glued together' }, help: 'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. The pieces are made so that both flaps fit; only on pieces you cut by hand can a normal glue tab remain where a second flap does not fit.' },
-    { k: 'pairMin', label: 'Two flaps from seam length', type: 'number', unit: 'mm', min: 0, max: 100, step: 1, dep: 'tabStyle=pair', help: 'Seams shorter than this get one normal glue tab instead of two flaps: stronger, and less bulk inside narrow parts. 0 = two flaps on every seam.' }] },
+    { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', pair: 'Two flaps glued together', zip: 'Zipper (alternating tabs)' }, help: 'Zipper: on long seams the tabs alternate between the two pieces, each part glued under the other face. Short seams get one normal glue tab. Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. The pieces are made so that both flaps fit; only on pieces you cut by hand can a normal glue tab remain where a second flap does not fit.' },
+    { k: 'pairMin', label: 'Two flaps from seam length', type: 'number', unit: 'mm', min: 0, max: 100, step: 1, dep: 'tabStyle=pair', help: 'Seams shorter than this get one normal glue tab instead of two flaps: stronger, and less bulk inside narrow parts. 0 = two flaps on every seam.' },
+    { k: 'zipSeg', label: 'Zipper part length', type: 'number', unit: 'mm', min: 6, max: 100, step: 1, dep: 'tabStyle=zip', help: 'Length of each alternating tab. Seams of at least twice this length become a zipper; shorter seams get one normal glue tab.' }] },
   { id: 'auto', icon: '✂️', title: 'Automatic unfolding', intro: 'How the model is divided into pieces automatically.', items: [
     { k: 'pieceShape', label: 'Shape of the pieces', type: 'select', opts: { large: 'Large (fewest pieces)', compact: 'Compact', vcompact: 'Very compact' }, help: 'Compact pieces have no long arms or ragged edges, so they are easier to fold and glue. They are a bit more pieces.' },
     { k: 'sharpCut', label: 'Cut at sharp folds', type: 'check', help: 'Sharp folds become a cut with a glue tab: easier to build than folding a sharp corner.' },
@@ -916,7 +923,7 @@ function drawPreviews(live) {
     const L = 60, sc = 5, h = Math.max(1, st.tabH), ang = Math.max(5, Math.min(85, st.tabAngle));
     let d = h / Math.tan(ang * Math.PI / 180), hh = h; if (2 * d > 0.9 * L) { d = 0.45 * L; hh = Math.min(h, d * Math.tan(ang * Math.PI / 180)); }
     const x0 = 40, y0 = 30 + hh * sc, X = v => x0 + v * sc, Y = v => y0 - v * sc;
-    const W = L * sc + 150, Hh = y0 + 105 + (st.tabStyle === 'pair' ? 24 : 0);
+    const W = L * sc + 150, Hh = y0 + 105 + (st.tabStyle === 'pair' || st.tabStyle === 'zip' ? 24 : 0);
     pt.innerHTML = `<svg width="${W}" height="${Hh}" viewBox="0 0 ${W} ${Hh}" style="max-width:100%">
       <polygon points="${X(0)},${Y(0)} ${X(L)},${Y(0)} ${X(L * 0.75)},${Y(-18)} ${X(L * 0.2)},${Y(-18)}" fill="#cdeccf" stroke="#111" stroke-width="1"/>
       <polygon points="${X(0)},${Y(0)} ${X(d)},${Y(hh)} ${X(L - d)},${Y(hh)} ${X(L)},${Y(0)}" fill="#f1f3f6" stroke="#111" stroke-width="1.4"/>
@@ -925,8 +932,8 @@ function drawPreviews(live) {
       <text x="${X(d) + 6}" y="${Y(0) - 6}" font-size="16" fill="#b45309">${fx(ang)}°</text>
       <path d="M${X(0) + 22} ${Y(0)} A 22 22 0 0 0 ${X(0) + 22 * Math.cos(ang * Math.PI / 180)} ${Y(0) - 22 * Math.sin(ang * Math.PI / 180)}" fill="none" stroke="#b45309"/>
       <text x="${X(L * 0.45)}" y="${Y(-10)}" font-size="15" fill="#475569" text-anchor="middle">${tr('face')}</text>
-      <text x="${X(L / 2)}" y="${Y(hh / 2) + 4}" font-size="14" fill="#475569" text-anchor="middle">${tr(st.tabStyle === 'pair' ? 'flap (on both pieces)' : 'glue tab')}</text>
-      ${st.tabStyle === 'pair' ? `<text x="${X(0)}" y="${Hh - 6}" font-size="14" fill="#2563eb">${esc(+st.pairMin > 0 ? tr('Seams shorter than {n} mm: one glue tab', { n: fx(+st.pairMin) }) : tr('Every seam: two flaps'))}</text>` : ''}
+      <text x="${X(L / 2)}" y="${Y(hh / 2) + 4}" font-size="14" fill="#475569" text-anchor="middle">${tr(st.tabStyle === 'pair' ? 'flap (on both pieces)' : st.tabStyle === 'zip' ? 'tab (alternating)' : 'glue tab')}</text>
+      ${st.tabStyle === 'zip' ? `<text x="${X(0)}" y="${Hh - 6}" font-size="14" fill="#2563eb">${esc(tr('Seams of at least {n} mm: zipper, parts of {m} mm', { n: fx(2 * Math.max(6, +st.zipSeg || 15)), m: fx(Math.max(6, +st.zipSeg || 15)) }))}</text>` : ''}${st.tabStyle === 'pair' ? `<text x="${X(0)}" y="${Hh - 6}" font-size="14" fill="#2563eb">${esc(+st.pairMin > 0 ? tr('Seams shorter than {n} mm: one glue tab', { n: fx(+st.pairMin) }) : tr('Every seam: two flaps'))}</text>` : ''}
     </svg>`;
   }
   const pf = $('prev-font');
@@ -985,7 +992,7 @@ function applySetting(k) {
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
   // two flaps need room on both sides of every seam: the pieces are made again
-  if (k === 'tabStyle' || k === 'pairMin') { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); if (pairNote()) toast(pairNote().slice(3), 5000); warnRecut(); return; }
+  if (k === 'tabStyle' || k === 'pairMin' || k === 'zipSeg') { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); if (pairNote()) toast(pairNote().slice(3), 5000); warnRecut(); return; }
   if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'cleanFaces', 'scoreMinDeg'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
 }
 
@@ -1198,7 +1205,7 @@ async function loadProject(p) {
   if (!p || p.app !== 'papercraft') throw new Error(tr('Not a papercraft project'));
   S.set = { ...DEF, ...p.set };
   if (S.set.tabStyle === 'fin') S.set.tabStyle = 'pair'; // "tab and flap" was removed
-  if (!['glue', 'pair'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
+  if (!['glue', 'pair', 'zip'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
   if (p.set && p.set.thinMM === undefined) S.set.thinMM = 0; // older project: its mesh was not cleaned up
   syncSide(); saveSettings();
   await loadModelBuffer(b64ToBuf(p.file), p.name, p);
@@ -1490,6 +1497,8 @@ function pieceLimit(paper) {
   if (st.maxPieceOn && st.maxPiece > 0) { W = Math.min(W, st.maxPiece); H = Math.min(H, st.maxPiece); }
   return [W, H];
 }
+// zipper part length in mm (0 = no zipper)
+const zipSeg = () => S.set.tabStyle === 'zip' ? Math.max(6, +S.set.zipSeg || 15) : 0;
 function autoOptions() {
   const st = S.set;
   let [W, H] = pieceLimit(st.paper), faceWH = null;
@@ -1500,11 +1509,15 @@ function autoOptions() {
     faceWH = S.faceColor.map(c => lim[keyPaper(c.join(','))] || lim[st.paper]);
     for (const pp of papers) { W = Math.max(W, lim[pp][0]); H = Math.max(H, lim[pp][1]); }
   }
-  return { scale: S.scale, W, H, faceWH, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, pair: st.tabStyle === 'pair', pairMin: st.tabStyle === 'pair' ? Math.max(0, +st.pairMin || 0) : 0, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
+  return { scale: S.scale, W, H, faceWH, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, pair: st.tabStyle === 'pair', pairMin: st.tabStyle === 'pair' ? Math.max(0, +st.pairMin || 0) : 0, zip: zipSeg(), timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
     sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), minWidth: Math.max(0, +st.minWidth || 0), minSize: Math.max(0, +st.minSize || 0), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
 }
 // "two flaps glued together": how many seams got two flaps and how many one glue tab
 function pairNote() {
+  if (S.set.tabStyle === 'zip' && S.tl && S.tl.zip) {
+    let z = 0, one = 0; S.tl.tabs.forEach((t, e) => { if (t) { if (S.tl.zip[e]) z++; else one++; } });
+    return tr(' · {a} seams as a zipper, {b} with one glue tab', { a: z, b: one });
+  }
   if (S.set.tabStyle !== 'pair' || !S.tl || !S.tl.tabs2) return '';
   let two = 0, one = 0; S.tl.tabs.forEach((t, e) => { if (t) { if (S.tl.tabs2[e]) two++; else one++; } });
   return tr(' · {a} seams with two flaps, {b} with one glue tab', { a: two, b: one });
@@ -1594,7 +1607,7 @@ function refresh() {
   S.lmm = Core.toMM(cp.local, S.scale);
   const st = S.set;
   const fitWH = st.tabStyle === 'pair' ? autoOptions() : null; // flaps only where the piece still fits the paper
-  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'pair', pairMin: Math.max(0, +st.pairMin || 0), W: fitWH && fitWH.W, H: fitWH && fitWH.H, faceWH: fitWH && fitWH.faceWH });
+  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'pair', pairMin: Math.max(0, +st.pairMin || 0), zip: zipSeg(), W: fitWH && fitWH.W, H: fitWH && fitWH.H, faceWH: fitWH && fitWH.faceWH });
   S.so = Core.selfOverlaps(cp, S.lmm);
   numberEdges();
   // plaats van elk stuk afleiden uit de vorige wereld-coördinaten (stukken blijven waar ze waren)
@@ -1700,7 +1713,17 @@ function buildDrawings() {
           d.hits.push({ e, a, b });
           const ux = (b[0] - a[0]) / E.len / S.scale, uy = (b[1] - a[1]) / E.len / S.scale, l = E.len * S.scale;
           const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
-          if (S.tl.tabFace[e] === f) {
+          const zp = S.tl.zip && S.tl.zip[e] && S.tl.zip[e][f];
+          if (zp) { // zipper: this face's parts of the seam, alternately a tab (with the number) and a cut
+            for (const z of zp) {
+              if (!z.poly) { d.cuts.push({ e, a: z.a, b: z.b }); continue; }
+              d.tabs.push({ e, f, poly: z.poly, shape: null, bad: false });
+              d.folds.push({ e, a: z.a, b: z.b, type: foldType(true), tab: true });
+              const zl = Math.hypot(z.b[0] - z.a[0], z.b[1] - z.a[1]), zx = (z.a[0] + z.b[0]) / 2, zy = (z.a[1] + z.b[1]) / 2;
+              const fs = Math.min(st.fontSize, z.h * 0.7, zl * 0.35);
+              d.labels.push({ e, x: zx - uy * z.h / 2, y: zy + ux * z.h / 2, ang, fs, col: [255, 255, 255], tab: true });
+            }
+          } else if (S.tl.tabFace[e] === f) {
             const t = S.tl.tabs[e];
             d.tabs.push({ e, f, poly: t.poly, shape: null, bad: t.bad });
             if (t.bad) d.bad = true;
@@ -2565,7 +2588,7 @@ $('view3d').addEventListener('change', () => update3DColors());
 $('showDims').addEventListener('change', req3);
 $('mirror3d').checked = !!S.set.mirror3d; applyMirror3();
 if (S.set.tabStyle === 'fin') S.set.tabStyle = 'pair'; // "tab and flap" was removed
-if (!['glue', 'pair'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
+if (!['glue', 'pair', 'zip'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
 if (!S.set.split3d) S.set.split3d = S.set.gaps3d ? 'gaps' : 'none';
 if (!(S.set.explodeAmt >= 50 && S.set.explodeAmt <= 100)) S.set.explodeAmt = 75;
 $('split3d').value = S.set.split3d; $('explode3d').value = S.set.explodeAmt; $('explode3d').hidden = S.set.split3d !== 'explode';
@@ -3057,7 +3080,7 @@ setTool('select');
 const qp = new URLSearchParams(location.search).get('model');
 if (qp) fetch(qp).then(r => r.arrayBuffer()).then(b => loadModelBuffer(b, qp.split('/').pop(), null)).catch(e => toast(tr('Loading failed: ') + e.message));
 window.__S = S;
-window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, buildPDFs, pagePaper, pageDims, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter, piecePolys, printable, silObstacles };
+window.__api = { openSimplify, pieceBody, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, buildPDFs, pagePaper, pageDims, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter, piecePolys, printable, silObstacles };
 </script>
 </body>
 </html>

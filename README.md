@@ -29,6 +29,7 @@ Runs entirely in your browser: no installation, no account, and your models neve
   - optionally cut along color borders and group pages per color, for colored paper.
 - **Easier to build**: compact pieces without long arms (adjustable), optionally cut at sharp folds (they get a glue tab instead), and limit the size of the pieces.
 - **Two flaps glued together**: both pieces get a flap along the seam, glued onto each other, with the edge number on both; nothing needs to be printed on the faces.
+- **Zipper**: on long seams the glue tabs alternate between the two pieces, for a stronger seam.
 - **Plain card**: put the printed side on the inside (the pieces are mirrored on the paper), and score or perforate each fold depending on its direction.
 - **Detailed models**: models with more than 2,000 triangles can be simplified on import, with a live 3D preview. The shape and color borders are kept.
 - **Nesting**: pieces are packed tightly, using their real shape and 24 rotations, to save paper.

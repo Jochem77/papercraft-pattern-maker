@@ -427,6 +427,25 @@ function tabPoly(a, b, h, angDeg) {
   };
 }
 
+// Zipper: a long seam (at least 2 × seg mm) is split into n parts; the tabs alternate between the
+// two faces (part 0 on E.f[0], part 1 on E.f[1], ...), counted from E.v[0] so both sides agree.
+// a, b: the edge in the local coordinates of face f (in face order), lenMm: its length in mm.
+// Returns null for a short seam, else [{a, b, mine}] along a→b.
+function zipSegs(m, e, f, a, b, lenMm, seg) {
+  if (!(seg > 0) || lenMm < 2 * seg) return null;
+  const E = m.E[e], n = Math.floor(lenMm / seg), side = E.f.indexOf(f);
+  const i = m.FE[f].indexOf(e), fwd = m.F[f][i] === E.v[0];
+  const at = t => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const out = [];
+  let p = at(0);
+  for (let j = 0; j < n; j++) {
+    const q = j === n - 1 ? at(1) : at((j + 1) / n), k = fwd ? j : n - 1 - j;
+    out.push({ a: p, b: q, mine: k % 2 === side });
+    p = q;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- automatisch uitvouwen
 // Gulzig: verbind randen (vlak eerst, dan kleinste knik, dan langste) zolang er geen overlap ontstaat
 // en het stuk op het papier past. opts: {maxW, maxH (in mesh-eenheden), avoid: Uint8Array randen niet verbinden}
@@ -559,9 +578,9 @@ function layoutTabs(m, cp, lmm, joined, opts) {
   const placed = pieces.map(() => []); // per stuk: {poly, bb, e}
   const conflicts = []; // {e, f, withFace | withTab}
   const facesOf = pieces.map(p => p.faces);
-  const tryTab = (e, f, st) => {
+  const tryTab = (e, f, st, A, B) => {
     const i = m.FE[f].indexOf(e), P = lmm[f];
-    const t = tabPoly(P[i], P[(i + 1) % 3], opts.tabH * st[0], st[1]);
+    const t = tabPoly(A || P[i], B || P[(i + 1) % 3], opts.tabH * st[0], st[1]);
     const bb = bbox(t.poly), pid = pieceOf[f];
     // vlakken van het eigen stuk
     for (const g of facesOf[pid]) {
@@ -598,8 +617,37 @@ function layoutTabs(m, cp, lmm, joined, opts) {
       return;
     }
   };
+  // opts.zip (mm): a long seam gets alternating tabs on both faces, like a zipper. zip[e] = {f: [parts]}
+  // with per face its parts along the edge: {a, b, poly, h} (a tab) or {a, b} (cut). Where a part does
+  // not fit, the seam gets one normal tab instead.
+  const zip = opts.zip ? new Array(nE).fill(null) : null;
   for (const e of cut) {
     const E = m.E[e];
+    if (zip) {
+      const res = {}; let okZ = true; const added = [];
+      for (const f of E.f) {
+        const i = m.FE[f].indexOf(e), P = lmm[f], a = P[i], b = P[(i + 1) % 3];
+        const zs = zipSegs(m, e, f, a, b, Math.hypot(b[0] - a[0], b[1] - a[1]), opts.zip);
+        if (!zs) { okZ = false; break; }
+        res[f] = [];
+        for (const z of zs) {
+          if (!z.mine) { res[f].push({ a: z.a, b: z.b }); continue; }
+          let r = null;
+          for (const sc of steps) { const x = tryTab(e, f, sc, z.a, z.b); if (x.ok) { r = x; break; } }
+          if (!r) { okZ = false; break; }
+          const o = { poly: r.t.poly, bb: r.bb, e, f }; placed[pieceOf[f]].push(o); added.push(o);
+          res[f].push({ a: z.a, b: z.b, poly: r.t.poly, h: r.t.h });
+        }
+        if (!okZ) break;
+      }
+      if (okZ) {
+        zip[e] = res; tabFace[e] = E.f[0];
+        const t0 = res[E.f[0]].find(z => z.poly);
+        tabs[e] = { poly: t0.poly, h: t0.h, bad: false, zip: true };
+        continue;
+      }
+      for (const o of added) { const L2 = placed[pieceOf[o.f]]; L2.splice(L2.indexOf(o), 1); }
+    }
     const user = opts.tabUser ? opts.tabUser[e] : -1;
     const sides = user >= 0 ? [user, 1 - user] : [0, 1];
     let res = null, side = -1, fail = null;
@@ -629,7 +677,7 @@ function layoutTabs(m, cp, lmm, joined, opts) {
     }
   }
   for (const c of conflicts) tabs[c.e].bad = true;
-  return { tabFace, tabs, conflicts, tabs2 };
+  return { tabFace, tabs, conflicts, tabs2, zip };
 }
 
 // Number of faces of a piece as you see them: triangles joined by a flat edge count once.
@@ -772,10 +820,10 @@ function validateComponent(m, joined, seed, o, info) {
   for (const f of faces) for (const e of m.FE[f]) if (m.E[e].m && !joined[e]) cut.add(e);
   const placed = [], pts = [];
   for (const f of faces) for (const p of L.get(f)) pts.push(p);
-  const tabOn = (e, f, hits) => { // a tab or flap on side f of edge e, the largest that fits
+  const tabOn = (e, f, hits, A, B) => { // a tab or flap on side f of edge e (or its part A→B), the largest that fits
     for (const sc of tabSteps(o)) {
       const i = m.FE[f].indexOf(e), P = L.get(f);
-      const t = tabPoly(P[i], P[(i + 1) % 3], o.tabH * sc[0], sc[1]), bb = bbox(t.poly);
+      const t = tabPoly(A || P[i], B || P[(i + 1) % 3], o.tabH * sc[0], sc[1]), bb = bbox(t.poly);
       let hit = -1;
       for (const it of items) { if (it.f !== f && bbOver(bb, it.bb) && polyOverlap(t.poly, L.get(it.f))) { hit = it.f; break; } }
       if (hit < 0) for (const q of placed) { if (bbOver(bb, q.bb) && polyOverlap(t.poly, q.poly)) { hit = q.f; break; } }
@@ -787,6 +835,17 @@ function validateComponent(m, joined, seed, o, info) {
   for (const e of [...cut].sort((a, b) => m.E[b].len - m.E[a].len)) {
     const E = m.E[e], sides = E.f.filter(f => local.has(f));
     // o.pair (two flaps glued together): every side of the seam in this piece needs its own flap
+    // o.zip: a long seam gets alternating tabs on both sides (a zipper); every part needs room
+    if (o.zip) {
+      let zs = null; const hits = [];
+      for (const f of sides) {
+        const i = m.FE[f].indexOf(e), Pf = L.get(f);
+        zs = zipSegs(m, e, f, Pf[i], Pf[(i + 1) % 3], E.len * o.scale, o.zip);
+        if (!zs) break;
+        for (const z of zs) if (z.mine && !tabOn(e, f, hits, z.a, z.b)) { if (!info) return false; ok = false; for (const h of hits) conf.add(h); }
+      }
+      if (zs) continue;
+    }
     // (only seams of at least o.pairMin mm; shorter seams get one normal tab, as below)
     if (o.pair && E.len * o.scale >= (o.pairMin || 0)) {
       const hits = [];
@@ -1671,7 +1730,7 @@ const api = {
   nestLayout, simplifyMesh, cleanMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
   parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny, pieceShape,
-  bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,
+  bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, zipSegs, autoUnfold, layoutTabs,
   selfOverlaps, treePath, splitEdge, otherFace, hslToRgb, validateComponent, remergePass, repair, scoreJoined
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Core = api;
