@@ -1320,7 +1320,12 @@ function nestLayout(items, W, H, o) {
 // turns over, the surface stays manifold, and borders between different keys (colours) and open
 // edges stay where they are. Returns { pos, src, collapsed, flipped }; src[t] is the original
 // triangle of output triangle t (to carry over colours). Deterministic.
-function cleanMesh(pos, minH, key, tol) {
+// ver 2 (default): a thin face that none of that can remove (a sliver between sharp folds or along
+// a colour border) is removed by moving its tip straight onto its long edge (at most its own
+// height, so less than minH) and splitting the face on the other side there. ver 1: without that
+// (projects saved before it get the same mesh back).
+function cleanMesh(pos, minH, key, tol, ver) {
+  ver = ver || 2;
   const n = Math.floor(pos.length / 9);
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i < n * 9; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
@@ -1391,6 +1396,31 @@ function cleanMesh(pos, minH, key, tol) {
     for (const k of t1) vf[k].add(f); for (const k of t2) vf[k].add(g);
     return true;
   };
+  // tip of face f onto its long edge a-b: f disappears, the face g on the other side is split
+  const tryProject = (f, a, b) => {
+    const tip = T[f].find(i => i !== a && i !== b);
+    const fs = facesOfEdge(a, b); if (fs.length !== 2) return false;
+    const g = fs[0] === f ? fs[1] : fs[0], d = T[g].find(i => i !== a && i !== b);
+    if (d === tip || neighbours(tip).has(d)) return false;
+    for (const w of neighbours(tip)) if (facesOfEdge(tip, w).length !== 2) return false; // open edge at the tip
+    const ab = sub(V[b], V[a]), L2 = dot(ab, ab), t = dot(sub(V[tip], V[a]), ab) / L2;
+    if (!(t > 0.02 && t < 0.98)) return false;
+    const p = [V[a][0] + ab[0] * t, V[a][1] + ab[1] * t, V[a][2] + ab[2] * t];
+    for (const h of vf[tip]) {
+      if (!alive[h] || h === f) continue;
+      const old = T[h].map(i => V[i]), now = T[h].map(i => (i === tip ? p : V[i]));
+      const n0 = nrm(...old), n1 = nrm(...now), l0 = len(n0), l1 = len(n1);
+      if (l1 < 1e-12 * diag * diag || dot(n0, n1) < 0.25 * l0 * l1) return false;
+    }
+    // g = (.. q, r ..) with {q, r} = {a, b} in its order: (q, tip, d) and (tip, r, d)
+    const j = T[g].indexOf(a), [q, r] = T[g][(j + 1) % 3] === b ? [a, b] : [b, a];
+    alive[f] = false; for (const k of T[f]) vf[k].delete(f);
+    for (const k of T[g]) vf[k].delete(g);
+    V[tip] = p;
+    T[g] = [q, tip, d]; const g2 = T.length; T.push([tip, r, d]); alive.push(true); K.push(K[g]); src.push(src[g]);
+    for (const k of T[g]) vf[k].add(g); for (const k of T[g2]) vf[k].add(g2);
+    return true;
+  };
   let collapsed = 0, flipped = 0;
   for (let round = 0; round < 6; round++) {
     let changed = 0;
@@ -1432,6 +1462,7 @@ function cleanMesh(pos, minH, key, tol) {
           if (ok) collapsed++;
         }
       }
+      if (!ok && ver >= 2) { ok = tryProject(f, E[2][0], E[2][1]); if (ok) collapsed++; }
       if (ok) changed++;
     }
     if (!changed) break;

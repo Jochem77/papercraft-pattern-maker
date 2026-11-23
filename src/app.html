@@ -929,7 +929,7 @@ function applySetting(k) {
   if (k === 'size') { S.scale = S.set.size / S.maxDim; S.world = null; if (autoAgain) return runAuto(); refresh(); fitView(); return; }
   if (k === 'thinMM') {
     if (!S.full) return;
-    S.cleanTol = cleanTolFor(S.simplify ? simplifiedData(S.full, S.simplify) : S.full);
+    S.cleanTol = cleanTolFor(S.simplify ? simplifiedData(S.full, S.simplify) : S.full); S.cleanVer = 2;
     loadModel(modelData(), S.name, null).then(() => { if (S.cleanInfo) toast(tr('{n} thin faces cleaned up ({c} edges joined, {f} turned).', { n: S.cleanInfo.removed + S.cleanInfo.flipped, c: S.cleanInfo.collapsed, f: S.cleanInfo.flipped }), 4000); });
     return;
   }
@@ -977,6 +977,7 @@ async function loadModelBuffer(buf, name, proj) {
   S.full = full; S.fullCount = n; S.simplify = target;
   // a project brings its own clean-up tolerance (model units), so the same mesh comes back
   S.cleanTol = proj ? (proj.cleanTol || 0) : cleanTolFor(target ? simplifiedData(full, target) : full);
+  S.cleanVer = proj ? (proj.cleanVer || 1) : 2; // the clean-up a project was made with
   await loadModel(modelData(), name, proj);
 }
 // ---------------------------------------------------------------- dunne vlakken opschonen
@@ -996,7 +997,7 @@ function cleanTolFor(d) {
 function cleanedData(d, tol) {
   S.cleanInfo = null;
   if (!(tol > 0)) return d;
-  const r = Core.cleanMesh(d.pos, tol, d.faceMat || null);
+  const r = Core.cleanMesh(d.pos, tol, d.faceMat || null, undefined, S.cleanVer || 2);
   S.cleanInfo = { removed: d.pos.length / 9 - r.pos.length / 9, collapsed: r.collapsed, flipped: r.flipped };
   const out = { ...d, pos: r.pos };
   if (d.faceMat) out.faceMat = Array.from(r.src, t => d.faceMat[t]);
@@ -1086,6 +1087,7 @@ async function openSimplify() {
   if (v === null) return;
   S.simplify = v;
   S.cleanTol = cleanTolFor(v ? simplifiedData(S.full, v) : S.full);
+  S.cleanVer = 2;
   await loadModel(modelData(), S.name, null);
 }
 async function loadProject(p) {
@@ -1097,7 +1099,7 @@ async function loadProject(p) {
   await loadModelBuffer(b64ToBuf(p.file), p.name, p);
 }
 function projectData() {
-  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, cleanTol: S.cleanTol || 0, colorPaper: S.colorPaper || {}, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
+  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, cleanTol: S.cleanTol || 0, cleanVer: S.cleanVer || 2, colorPaper: S.colorPaper || {}, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
     paint: S.faceMat && S.faceColor ? { materials: S.model.materials, faceMat: S.faceMat, faceColor: S.faceColor } : null };
   return p;
 }
@@ -2868,11 +2870,37 @@ $('bLoad').onclick = () => $('fProj').click();
 $('fModel').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if (f) openFile(f); };
 $('fProj').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if (f) openFile(f); };
 $('bSave').onclick = saveProject;
-$('bAuto').onclick = () => {
+$('bAuto').onclick = async () => {
   if (!S.mesh) return;
   if (S.manual && !confirm(tr('Unfolding automatically replaces your own edits (you can undo this). Continue?'))) return;
+  if (await upgradeClean()) return;
   runAuto(false);
 };
+// A project made with an older clean-up keeps its mesh (so its cuts still fit). Unfolding it
+// automatically replaces all cuts anyway, so then the model is cleaned up the current way first;
+// colours (also painted ones) go along per original triangle. Unfolds; returns true when it did.
+async function upgradeClean() {
+  if (!S.full || !(S.cleanTol > 0) || (S.cleanVer || 2) >= 2) return false;
+  const d = S.simplify ? simplifiedData(S.full, S.simplify) : S.full;
+  const old = Core.cleanMesh(d.pos, S.cleanTol, d.faceMat || null, undefined, S.cleanVer);
+  const colOf = new Map(), matOf = new Map();
+  S.mesh.src.forEach((t, f) => { const o = old.src[t]; if (S.faceColor) colOf.set(o, S.faceColor[f]); if (S.faceMat) matOf.set(o, S.faceMat[f]); });
+  const mats = S.model.materials, colorPaper = S.colorPaper;
+  S.cleanVer = 2;
+  const data = modelData();
+  busy(true, tr('Unfolding…'));
+  await loadModel(data, S.name, null);
+  S.colorPaper = colorPaper;
+  // carry over the colours of the faces as they were
+  const nsrc = Core.cleanMesh(d.pos, S.cleanTol, d.faceMat || null, undefined, 2).src;
+  if (colOf.size) {
+    if (!S.faceColor) S.faceColor = S.mesh.src.map(() => [255, 255, 255]);
+    S.mesh.src.forEach((t, f) => { const o = nsrc[t], c = colOf.get(o), k = matOf.get(o); if (c && S.faceColor) S.faceColor[f] = c.slice(); if (k !== undefined && S.faceMat) S.faceMat[f] = k; });
+    if (mats) S.model.materials = mats;
+    showMaterials(); setup3D(); await runAuto(false);
+  }
+  return true;
+}
 $('bLayout').onclick = () => {
   if (!S.cp) return;
   pushUndo(); busy(true, tr('Arranging pieces…'));

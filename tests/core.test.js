@@ -280,3 +280,24 @@ test('clean up thin faces: fewer slivers, same shape, still closed', () => {
   assert.equal(r.src.length, after.F.length);
   assert.deepEqual(C.cleanMesh(pos, 0.05).pos, r.pos); // deterministic
 });
+
+test('clean up thin faces: a sliver on a sharp edge along a colour border goes too', () => {
+  // a cube with a thin bevel along top edge 4-5: vertex 8 sits just outside that edge, so triangle
+  // 4-5-8 is a sliver between a colour border (top vs side) and two sharp folds
+  const V = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1], [0.5, -0.03, 0.97]];
+  const tris = [[0, 2, 1], [0, 3, 2], [0, 1, 5], [0, 5, 4], [1, 2, 6], [1, 6, 5], [2, 3, 7], [2, 7, 6], [3, 0, 4], [3, 4, 7],
+    [4, 5, 8], [5, 6, 8], [6, 7, 8], [7, 4, 8]];
+  const key = tris.map((t, i) => (i >= 10 ? 1 : 0)); // the top fan (with the sliver) has another colour
+  const pos = Float32Array.from(tris.flatMap(t => t.flatMap(i => V[i])));
+  const minH = m => Math.min(...m.F.map(f => { const [a, b, c] = f.map(v => m.V[v]); const u = [0, 1, 2].map(k => b[k] - a[k]), w = [0, 1, 2].map(k => c[k] - a[k]);
+    const A2 = Math.hypot(u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]);
+    return A2 / Math.max(...[[a, b], [b, c], [c, a]].map(([p, q]) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]))); }));
+  assert.ok(minH(C.buildMesh(pos)) < 0.05);
+  const r = C.cleanMesh(pos, 0.1, key);
+  const after = C.buildMesh(r.pos);
+  assert.ok(minH(after) >= 0.1, 'sliver left: ' + minH(after));
+  assert.equal(after.E.filter(e => !e.m).length, 0, 'not closed');
+  assert.ok(Math.abs(signedVolume(after) - signedVolume(C.buildMesh(pos))) < 0.02, 'shape changed too much');
+  // the old clean-up (projects saved before) leaves the mesh as it was
+  assert.ok(minH(C.buildMesh(C.cleanMesh(pos, 0.1, key, undefined, 1).pos)) < 0.05);
+});
