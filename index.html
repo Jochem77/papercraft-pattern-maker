@@ -2330,6 +2330,10 @@ const NL = {
   'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. The pieces are made so that both flaps fit; only on pieces you cut by hand can a normal glue tab remain where a second flap does not fit.': 'Twee flapjes op elkaar plakken: beide stukken krijgen een flapje langs de naad. Vouw beide flapjes naar binnen en plak ze op elkaar. Het randnummer staat op allebei, dus op de vlakken hoeft niets geprint te worden en de buitenkant kan gerild worden. De stukken worden zo gemaakt dat beide flapjes passen; alleen bij stukken die je zelf knipt kan er een gewone plakstrook overblijven waar geen tweede flapje past.',
   'Two flaps from seam length': 'Twee flapjes vanaf naadlengte',
   'Seams shorter than this get one normal glue tab instead of two flaps: stronger, and less bulk inside narrow parts. 0 = two flaps on every seam.': 'Naden korter dan dit krijgen één gewone plakstrook in plaats van twee flapjes: steviger, en minder dik binnenin smalle delen. 0 = twee flapjes bij elke naad.',
+  'flap (on both pieces)': 'flapje (op beide stukken)',
+  'Seams shorter than {n} mm: one glue tab': 'Naden korter dan {n} mm: één plakstrook',
+  'Every seam: two flaps': 'Elke naad: twee flapjes',
+  ' · {a} seams with two flaps, {b} with one glue tab': ' · {a} naden met twee flapjes, {b} met één plakstrook',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2590,7 +2594,7 @@ function drawPreviews(live) {
     const L = 60, sc = 5, h = Math.max(1, st.tabH), ang = Math.max(5, Math.min(85, st.tabAngle));
     let d = h / Math.tan(ang * Math.PI / 180), hh = h; if (2 * d > 0.9 * L) { d = 0.45 * L; hh = Math.min(h, d * Math.tan(ang * Math.PI / 180)); }
     const x0 = 40, y0 = 30 + hh * sc, X = v => x0 + v * sc, Y = v => y0 - v * sc;
-    const W = L * sc + 150, Hh = y0 + 105;
+    const W = L * sc + 150, Hh = y0 + 105 + (st.tabStyle === 'pair' ? 24 : 0);
     pt.innerHTML = `<svg width="${W}" height="${Hh}" viewBox="0 0 ${W} ${Hh}" style="max-width:100%">
       <polygon points="${X(0)},${Y(0)} ${X(L)},${Y(0)} ${X(L * 0.75)},${Y(-18)} ${X(L * 0.2)},${Y(-18)}" fill="#cdeccf" stroke="#111" stroke-width="1"/>
       <polygon points="${X(0)},${Y(0)} ${X(d)},${Y(hh)} ${X(L - d)},${Y(hh)} ${X(L)},${Y(0)}" fill="#f1f3f6" stroke="#111" stroke-width="1.4"/>
@@ -2599,7 +2603,8 @@ function drawPreviews(live) {
       <text x="${X(d) + 6}" y="${Y(0) - 6}" font-size="16" fill="#b45309">${fx(ang)}°</text>
       <path d="M${X(0) + 22} ${Y(0)} A 22 22 0 0 0 ${X(0) + 22 * Math.cos(ang * Math.PI / 180)} ${Y(0) - 22 * Math.sin(ang * Math.PI / 180)}" fill="none" stroke="#b45309"/>
       <text x="${X(L * 0.45)}" y="${Y(-10)}" font-size="15" fill="#475569" text-anchor="middle">${tr('face')}</text>
-      <text x="${X(L / 2)}" y="${Y(hh / 2) + 4}" font-size="14" fill="#475569" text-anchor="middle">${tr('glue tab')}</text>
+      <text x="${X(L / 2)}" y="${Y(hh / 2) + 4}" font-size="14" fill="#475569" text-anchor="middle">${tr(st.tabStyle === 'pair' ? 'flap (on both pieces)' : 'glue tab')}</text>
+      ${st.tabStyle === 'pair' ? `<text x="${X(0)}" y="${Hh - 6}" font-size="14" fill="#2563eb">${esc(+st.pairMin > 0 ? tr('Seams shorter than {n} mm: one glue tab', { n: fx(+st.pairMin) }) : tr('Every seam: two flaps'))}</text>` : ''}
     </svg>`;
   }
   const pf = $('prev-font');
@@ -2658,7 +2663,7 @@ function applySetting(k) {
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
   // two flaps need room on both sides of every seam: the pieces are made again
-  if (k === 'tabStyle' || k === 'pairMin') { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
+  if (k === 'tabStyle' || k === 'pairMin') { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); if (pairNote()) toast(pairNote().slice(3), 5000); warnRecut(); return; }
   if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'cleanFaces', 'scoreMinDeg'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
 }
 
@@ -3176,6 +3181,12 @@ function autoOptions() {
   return { scale: S.scale, W, H, faceWH, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, pair: st.tabStyle === 'pair', pairMin: st.tabStyle === 'pair' ? Math.max(0, +st.pairMin || 0) : 0, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
     sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), minWidth: Math.max(0, +st.minWidth || 0), minSize: Math.max(0, +st.minSize || 0), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
 }
+// "two flaps glued together": how many seams got two flaps and how many one glue tab
+function pairNote() {
+  if (S.set.tabStyle !== 'pair' || !S.tl || !S.tl.tabs2) return '';
+  let two = 0, one = 0; S.tl.tabs.forEach((t, e) => { if (t) { if (S.tl.tabs2[e]) two++; else one++; } });
+  return tr(' · {a} seams with two flaps, {b} with one glue tab', { a: two, b: one });
+}
 function warnRecut() {
   const bad = S.cp ? S.cp.pieces.filter(p => p.off || p.big).length : 0;
   if (bad) toast(tr('{n} piece(s) no longer fit on the page (orange). Use Unfold automatically to cut again, or cut them smaller yourself.', { n: bad }), 7000);
@@ -3202,7 +3213,7 @@ function runAuto(initial) {
       refresh(); fitView();
       const n = S.cp.pieces.length;
       const bad = S.cp.pieces.filter(p => p.off || p.big).length;
-      toast(tr('{n} {pieces} on {p} {pages}', { n, pieces: pl(n, 'piece', 'pieces'), p: S.pageCount, pages: pl(S.pageCount, 'page', 'pages') }) + (bad ? tr(' · note: {n} piece(s) do not fit (orange)', { n: bad }) : ''), bad ? 6000 : 2800);
+      toast(tr('{n} {pieces} on {p} {pages}', { n, pieces: pl(n, 'piece', 'pieces'), p: S.pageCount, pages: pl(S.pageCount, 'page', 'pages') }) + pairNote() + (bad ? tr(' · note: {n} piece(s) do not fit (orange)', { n: bad }) : ''), bad || pairNote() ? 6000 : 2800);
       resolve();
     };
     const fallback = () => setTimeout(() => {
