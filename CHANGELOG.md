@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Make separate objects larger or smaller** (tool *Objects*, O): click a separate part of the model (for example a base, a tongue or a hat) in the 3D view or in the list, and set its size in %. It is scaled around its own centre and the model is unfolded again; the rest of the model keeps its size. Saved in the project. *All at 100 %* undoes it.
 - **Clean up thin faces** (*Settings → Model → Clean up faces thinner than*, default 2 mm): very thin or tiny triangles in the model are removed before unfolding, by joining their shortest edge or turning an edge, only where the shape hardly changes; colour borders and open edges stay. In the test model: 4 instead of 41 faces thinner than 2 mm, volume change 0.01 %. Projects keep their mesh (the tolerance is saved; older projects are not cleaned up).
 
 - **Avoid narrow and small pieces** (*Settings → Automatic unfolding*, default 8 mm average width and 25 mm size): such pieces are joined to the neighbour they share the longest border with, or take over a branch of it, when that stays valid. A narrow strip between sharp folds may join across one of them (colour borders stay cut). In the test project: 5 instead of 16 strips narrower than 8 mm.

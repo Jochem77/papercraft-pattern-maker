@@ -111,6 +111,18 @@ main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);min-height
 /* zwevend kleurenpaneel in 3D */
 #matPanel{position:absolute;left:10px;top:42px;width:250px;max-height:calc(100% - 100px);overflow:auto;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:8px 10px;display:none;z-index:3}
 #matPanel.show{display:block}
+#objPanel{position:absolute;left:10px;top:42px;width:250px;max-height:calc(100% - 100px);overflow:auto;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:8px 10px;display:none;z-index:3}
+#objPanel.show{display:block}
+#objPanel .mp-head{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:2px 0 6px}
+#objs{display:flex;flex-direction:column;gap:2px}
+#objs .row{display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 5px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+#objs .row:hover{background:#f3f4f6}
+#objs .row.sel{background:#dbeafe;border-color:#93b4f5}
+#objs .row .nm{flex:1}
+#objs input{width:58px;font-size:12px;padding:1px 3px}
+#objs .hint{font-size:11px;color:var(--muted);margin:4px 0 2px;line-height:1.35}
+#objs .matbtns{display:flex;gap:4px;margin-top:6px}
+#objs .matbtns button{padding:3px 7px;font-size:12px}
 #matPanel .mp-head{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:2px 0 6px}
 #mats{display:flex;flex-direction:column;gap:2px}
 #mats .row{display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 5px;border-radius:6px;cursor:pointer;border:1px solid transparent}
@@ -1950,6 +1962,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     <span class="seg" id="toolSeg">
       <button data-tool="select" class="on" data-i18n-title="Select: click a piece, drag to move it (S)" aria-label="Select"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 4 7 17 2.5-7.5L21 11z"/></svg></button>
       <button data-tool="cut" data-i18n-title="Cut / join: click near an edge; Shift+click flips the glue tab (K)" aria-label="Cut"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9"/><path d="M14.5 14.5 20 20"/><path d="M8.1 8.1 12 12"/></svg></button>
+      <button data-tool="object" data-i18n-title="Objects: click a separate part of the model to make it larger or smaller (O)" aria-label="Objects"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="8" height="8" rx="1"/><path d="M14 3h7v7"/><path d="M21 3l-8 8"/></svg></button>
       <button data-tool="paint" data-i18n-title="Paint colors: click or drag over faces (B)" aria-label="Paint"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L11 16l-4-4z"/><path d="M7 14c-2 0-3.5 1.5-3.5 3.5S2 21 2 21s4 0 5.5-1.5S9 16 7 14z"/></svg></button>
     </span>
     <span class="tsep"></span>
@@ -1991,6 +2004,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       <button id="bFit3" data-i18n>Fit</button>
     </div>
     <div id="pnums"></div>
+    <div id="objPanel"><div class="mp-head" data-i18n>⤢ Objects</div><div id="objs"></div></div>
     <div id="matPanel"><div class="mp-head" data-i18n>🖌 Colors / materials</div><div id="mats"></div></div>
     <div class="dim x" id="dim0"></div><div class="dim y" id="dim1"></div><div class="dim z" id="dim2"></div>
     <div class="legend"><span><i style="border-color:#e11d48"></i><span data-i18n>cut</span></span><span><i style="border-color:#475569"></i><span data-i18n>fold</span></span><span><i style="border-color:#f59e0b"></i><span data-i18n>open edge</span></span></div>
@@ -2278,6 +2292,12 @@ const NL = {
   'Very thin or tiny triangles in the model are removed by joining their shortest edge or turning an edge, where the shape hardly changes. Colour borders stay. 0 = off. Changing this starts the unfolding again.': 'Heel dunne of kleine driehoeken in het model worden weggewerkt door hun kortste rand samen te voegen of een rand om te klappen, waar de vorm nauwelijks verandert. Kleurgrenzen blijven. 0 = uit. Wijzigen begint het uitvouwen opnieuw.',
   '{n} thin faces cleaned up ({c} edges joined, {f} turned).': '{n} dunne vlakken opgeschoond ({c} randen samengevoegd, {f} omgeklapt).',
   ' · {n} thin faces cleaned up': ' · {n} dunne vlakken opgeschoond',
+  'Objects: click a separate part of the model to make it larger or smaller (O)': 'Objecten: klik op een los deel van het model om het groter of kleiner te maken (O)',
+  '⤢ Objects': '⤢ Objecten',
+  '⤢ Click a separate part of the model to make it larger or smaller': '⤢ Klik op een los deel van het model om het groter of kleiner te maken',
+  'This model is one connected object. Make all of it larger or smaller in Settings → Model.': 'Dit model is één samenhangend object. Maak het geheel groter of kleiner bij Instellingen → Model.',
+  'Object {n}': 'Object {n}', 'Size in %': 'Grootte in %', 'All at 100 %': 'Alles op 100 %',
+  'Click an object in the 3D view or in this list. A new size unfolds the model again.': 'Klik op een object in de 3D-weergave of in deze lijst. Een nieuwe grootte vouwt het model opnieuw uit.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2635,13 +2655,79 @@ async function loadModelBuffer(buf, name, proj) {
   // a project brings its own clean-up tolerance (model units), so the same mesh comes back
   S.cleanTol = proj ? (proj.cleanTol || 0) : cleanTolFor(target ? simplifiedData(full, target) : full);
   S.cleanVer = proj ? (proj.cleanVer || 1) : 2; // the clean-up a project was made with
+  S.objScale = proj && proj.objScale ? { ...proj.objScale } : {};
   await loadModel(modelData(), name, proj);
 }
 // ---------------------------------------------------------------- dunne vlakken opschonen
 // The model as it is unfolded: the original, optionally simplified, then cleaned up.
 function modelData() {
-  const d = S.simplify ? simplifiedData(S.full, S.simplify) : S.full;
-  return cleanedData(d, S.cleanTol);
+  const d = cleanedData(S.simplify ? simplifiedData(S.full, S.simplify) : S.full, S.cleanTol);
+  S.basePos = d.pos; S.objIds = null;
+  return hasObjScale() ? { ...d, pos: scaledPos() } : d;
+}
+// ---------------------------------------------------------------- losse objecten vergroten / verkleinen
+// An object is a separate part of the model: faces connected by edges (welded like the mesh).
+// They are numbered by their first face; S.objScale[number] = factor (1 = as loaded), scaled
+// around the centre of the object's bounding box. The model size keeps meaning the model as loaded.
+const hasObjScale = () => Object.values(S.objScale || {}).some(k => Math.abs(k - 1) > 1e-6);
+function objIds() {
+  if (S.objIds) return S.objIds;
+  const m = Core.buildMesh(S.basePos), of = new Int32Array(m.F.length).fill(-1), size = [];
+  for (let st = 0; st < m.F.length; st++) {
+    if (of[st] >= 0) continue;
+    const n = size.length, q = [st]; of[st] = n;
+    for (let i = 0; i < q.length; i++) for (const e of m.FE[q[i]]) for (const g of m.E[e].f) if (of[g] < 0) { of[g] = n; q.push(g); }
+    size.push(q.length);
+  }
+  S.objIds = { of, size, src: m.src };
+  return S.objIds;
+}
+function scaledPos() {
+  const { of, src, size } = objIds(), base = S.basePos, out = Float32Array.from(base);
+  const lo = size.map(() => [Infinity, Infinity, Infinity]), hi = size.map(() => [-Infinity, -Infinity, -Infinity]);
+  src.forEach((t, f) => { const c = of[f]; for (let j = 0; j < 9; j++) { const v = base[t * 9 + j], k = j % 3; if (v < lo[c][k]) lo[c][k] = v; if (v > hi[c][k]) hi[c][k] = v; } });
+  src.forEach((t, f) => {
+    const c = of[f], k = S.objScale[c];
+    if (!k || Math.abs(k - 1) < 1e-6) return;
+    for (let j = 0; j < 9; j++) { const a = j % 3, mid = (lo[c][a] + hi[c][a]) / 2; out[t * 9 + j] = mid + (base[t * 9 + j] - mid) * k; }
+  });
+  return out;
+}
+function baseMaxDim() {
+  const p = S.basePos; if (!p) return 0;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < p.length; i += 3) for (let k = 0; k < 3; k++) { const v = p[i + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+  return Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+}
+function showObjects() {
+  const box = $('objs'); if (!box) return;
+  if (!S.mesh || S.tool !== 'object') { box.innerHTML = ''; return; }
+  const { size } = objIds(), order = size.map((n, i) => i).sort((a, b) => size[b] - size[a]);
+  const pct = i => Math.round((S.objScale[i] || 1) * 100);
+  let h = '';
+  if (size.length < 2) h += `<div class="hint">${tr('This model is one connected object. Make all of it larger or smaller in Settings → Model.')}</div>`;
+  for (const i of order) h += `<div class="row${i === S.selObject ? ' sel' : ''}" data-obj="${i}"><span class="nm">${tr('Object {n}', { n: i + 1 })} · ${fmtN(size[i])} △</span><input type="number" min="10" max="1000" step="5" value="${pct(i)}" data-obj="${i}" title="${tr('Size in %')}">%</div>`;
+  h += `<div class="hint">${tr('Click an object in the 3D view or in this list. A new size unfolds the model again.')}</div>`;
+  if (hasObjScale()) h += `<div class="matbtns"><button id="objReset">${tr('All at 100 %')}</button></div>`;
+  box.innerHTML = h;
+  box.querySelectorAll('.row').forEach(r => r.onclick = ev => { if (ev.target.tagName === 'INPUT') return; S.selObject = +r.dataset.obj; showObjects(); update3DColors(); });
+  box.querySelectorAll('input').forEach(inp => {
+    inp.onfocus = () => { if (S.selObject !== +inp.dataset.obj) { S.selObject = +inp.dataset.obj; box.querySelectorAll('.row').forEach(r => r.classList.toggle('sel', +r.dataset.obj === S.selObject)); update3DColors(); } };
+    inp.onchange = () => { const v = Math.max(10, Math.min(1000, +inp.value || 100)); setObjScale({ [inp.dataset.obj]: v / 100 }); };
+  });
+  const rb = $('objReset'); if (rb) rb.onclick = () => { const all = {}; for (const k of Object.keys(S.objScale)) all[k] = 1; setObjScale(all); };
+}
+async function setObjScale(changes) {
+  for (const [c, k] of Object.entries(changes)) { if (Math.abs(k - 1) < 1e-6) delete S.objScale[c]; else S.objScale[c] = k; }
+  S.model = { ...S.model, pos: hasObjScale() ? scaledPos() : S.basePos };
+  const old = S.mesh, keepE = old.E.map(e => e.v.join());
+  const m = Core.buildMesh(meshPos(S.model.pos), S.set.flatDeg);
+  const same = m.E.length === keepE.length && m.F.length === old.F.length && m.E.every((e, i) => e.v.join() === keepE[i]);
+  S.mesh = m; S.cp = null; S.world = null;
+  applyMirror3(); setup3D();
+  if (!same) { S.tabUser = new Int8Array(m.E.length).fill(-1); S.joined = new Uint8Array(m.E.length); S.manual = false; }
+  if (S.manual) { refresh(); fitView(); warnRecut(); } else await runAuto(!same);
+  showObjects(); update3DColors();
 }
 // "Clean up faces thinner than" (mm) in model units, for the model size that is set now.
 function cleanTolFor(d) {
@@ -2756,7 +2842,7 @@ async function loadProject(p) {
   await loadModelBuffer(b64ToBuf(p.file), p.name, p);
 }
 function projectData() {
-  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, cleanTol: S.cleanTol || 0, cleanVer: S.cleanVer || 2, colorPaper: S.colorPaper || {}, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
+  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, cleanTol: S.cleanTol || 0, cleanVer: S.cleanVer || 2, objScale: S.objScale || {}, colorPaper: S.colorPaper || {}, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
     paint: S.faceMat && S.faceColor ? { materials: S.model.materials, faceMat: S.faceMat, faceColor: S.faceColor } : null };
   return p;
 }
@@ -2820,7 +2906,8 @@ async function loadModel(data, name, proj) {
   if (!m.F.length) throw new Error(tr('No triangles found'));
   S.model = data; S.name = name; S.mesh = m;
   applyMirror3();
-  S.maxDim = Math.max(...m.size); S.scale = S.set.size / S.maxDim;
+  S.maxDim = (S.basePos && hasObjScale() && baseMaxDim()) || Math.max(...m.size); S.scale = S.set.size / S.maxDim;
+  S.selObject = -1;
   syncSide();
   S.faceMat = data.faceMat ? m.src.map(t => data.faceMat[t]) : null;
   S.colorPaper = proj && proj.colorPaper ? { ...proj.colorPaper } : {};
@@ -2830,7 +2917,7 @@ async function loadModel(data, name, proj) {
   }
   S.paint = false; S.brush = 0;
   controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
-  if (S.tool === 'paint') S.tool = 'select';
+  if (S.tool === 'paint' || S.tool === 'object') { S.tool = 'select'; $('objPanel').classList.remove('show'); }
   S.undo = []; S.redo = []; S.selFace = -1; S.hover = -1; S.cp = null;
   $('empty').style.display = 'none';
   $('cap2d').textContent = tr('Pattern') + ' · ' + name;
@@ -2878,7 +2965,8 @@ function setPaint(on) { setTool(on ? 'paint' : 'select'); }
 const CAPS = {
   select: '3D · click a piece to select it',
   cut: '✂ Click near an edge: cut ⇄ join · Shift: flip glue tab',
-  paint: '🖌 Click/drag = paint · right drag = rotate'
+  paint: '🖌 Click/drag = paint · right drag = rotate',
+  object: '⤢ Click a separate part of the model to make it larger or smaller'
 };
 function setTool(t) {
   if (t === 'paint' && !S.mesh) return toast(tr('Open a model first'));
@@ -2887,9 +2975,11 @@ function setTool(t) {
   S.paint = on;
   document.querySelectorAll('#toolSeg [data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
   svg.classList.toggle('tool-cut', t === 'cut');
-  v3.classList.remove('tool-select', 'tool-cut', 'tool-paint'); v3.classList.add('tool-' + t);
+  v3.classList.remove('tool-select', 'tool-cut', 'tool-paint', 'tool-object'); v3.classList.add('tool-' + t);
   $('cap3d').textContent = tr(CAPS[t]);
   $('matPanel').classList.toggle('show', t === 'paint');
+  $('objPanel').classList.toggle('show', t === 'object');
+  if (t !== 'object') S.selObject = -1;
   setHover(-1);
   if (!S.mesh) return;
   if (on) {
@@ -2899,7 +2989,7 @@ function setTool(t) {
     controls.mouseButtons = { LEFT: -1, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
     setHover(-1);
   } else controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
-  update3DColors(); showMaterials();
+  update3DColors(); showMaterials(); showObjects();
 }
 function paintFace(f) {
   if (f < 0 || S.faceMat[f] === S.brush) return false;
@@ -4004,7 +4094,10 @@ function update3DColors() {
   const cache = new Map();
   for (let f = 0; f < S.mesh.F.length; f++) {
     const pid = S.cp.pieceOf[f];
-    if (mode === 'material' && S.faceColor) {
+    if (S.tool === 'object') { // objects: the selected one in its colours, the rest faded
+      if (S.faceColor) { const fc = S.faceColor[f]; c.setRGB(fc[0] / 255, fc[1] / 255, fc[2] / 255, THREE.SRGBColorSpace); } else c.set(0x9db8e8);
+      if (S.selObject >= 0 && objIds().of[f] !== S.selObject) c.lerp(WHITE, 0.8);
+    } else if (mode === 'material' && S.faceColor) {
       const fc = S.faceColor[f]; c.setRGB(fc[0] / 255, fc[1] / 255, fc[2] / 255, THREE.SRGBColorSpace);
       if (selP >= 0 && pid !== selP) c.lerp(WHITE, 0.82);
     } else {
@@ -4233,6 +4326,7 @@ renderer.domElement.addEventListener('pointerup', ev => {
   down3 = null;
   const p = pick3(ev);
   if (S.tool === 'cut' && p.edge >= 0) { if (ev.shiftKey) flipTab(p.edge); else toggleEdge(p.edge); }
+  else if (S.tool === 'object') { S.selObject = p.face >= 0 ? objIds().of[p.face] : -1; showObjects(); update3DColors(); }
   else if (p.face >= 0) selectPiece(p.face, true);
   else selectPiece(-1, true);
 });
@@ -4651,6 +4745,7 @@ window.addEventListener('keydown', ev => {
   else if (k === 's' && !ev.ctrlKey && !ev.metaKey) setTool('select');
   else if (k === 'k') setTool('cut');
   else if (k === 'b') setTool('paint');
+  else if (k === 'o' && !ev.ctrlKey && !ev.metaKey) setTool('object');
 });
 window.addEventListener('dragover', ev => ev.preventDefault());
 window.addEventListener('drop', ev => { ev.preventDefault(); const f = ev.dataTransfer.files[0]; if (f) openFile(f); });

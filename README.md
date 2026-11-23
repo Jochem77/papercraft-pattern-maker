@@ -48,6 +48,7 @@ Runs entirely in your browser: no installation, no account, and your models neve
 3. Adjust it with the tools in the toolbar (hover over an icon to see its name):
    - **Select** (S): click a piece to select it, drag to move it, rotate with Q / E.
    - **Cut / join** (K): click near an edge to cut or join it.
+   - **Objects** (O): click a separate part of the model and make it larger or smaller (in %).
    - **Paint colors** (B): paint faces.
 4. Choose paper, size and tabs under **Settings** (Ctrl+,).
 5. Download the **PDF** (Ctrl+P) and print it at **100% / actual size**, or export the SVG files for your cutting plotter.

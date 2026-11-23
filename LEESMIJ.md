@@ -30,6 +30,7 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
 3. Pas het aan met het gereedschap in de werkbalk (beweeg de muis over een pictogram voor de naam):
    - **Selecteren** (S): een stuk aanklikken, verslepen, draaien met Q/E (met Shift 90°).
    - **Knippen** (K): klik bij een rand om te knippen of te verbinden. Shift+klik zet de plakstrook aan de andere kant; Alt+klik knipt ook randen binnen een plat vlak.
+   - **Objecten** (O): klik op een los deel van het model en maak het groter of kleiner (in %).
    - **Kleuren** (B): vlakken een andere kleur geven. **Mini-vlakjes herstellen** lost losse foutjes in de kleuren op. Per kleur kies je ook het papier (A4 of A3): die kleur krijgt dan eigen pagina’s in die maat, en een eigen PDF.
 4. Onder **Instellingen** kies je onder meer:
    - de afmetingen van het model;
