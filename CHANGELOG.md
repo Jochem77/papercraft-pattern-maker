@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta.4] - 2026-11-23
+
 ### Added
 
 - **Rename materials**: click the name of a colour in the colours panel and type a new one (for example *green photo card*). The name is printed on every page of that material, is part of its PDF file name, and the plotter SVGs in the ZIP are now named and numbered like the PDF they belong to (material, paper, page). Saved in the project. Letters like é and ü now appear in the PDF instead of a question mark, and the page line shows the paper of that page.
@@ -117,7 +119,8 @@ First public beta. Please report problems via [GitHub Issues](https://github.com
 - OBJ files are assumed to be Y-up.
 - The Silhouette registration marks have been checked against Silhouette Studio's default settings only.
 
-[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.3...HEAD
+[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.4...HEAD
+[1.0.0-beta.4]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.3...v1.0.0-beta.4
 [1.0.0-beta.3]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.2...v1.0.0-beta.3
 [1.0.0-beta.2]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/Jochem77/papercraft-pattern-maker/releases/tag/v1.0.0-beta.1
