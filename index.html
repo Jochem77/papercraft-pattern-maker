@@ -1103,21 +1103,47 @@ function remergePass(m, joined, o) {
 // both pieces valid (no overlap, room for tabs, on the paper, limits) are made.
 // relax: when given, only these edges may not be joined (used to let tiny pieces that are
 // enclosed by sharp folds join a neighbour across their least sharp fold; colour borders stay).
-function growTiny(m, joined, o, relax) {
-  const t0 = Date.now(), budget = o.growBudget || 1500, avoid = e => (relax ? relax[e] : o.avoid && o.avoid[e]);
+// Width and length of a piece in mm: length = longest extent over all rotations, width = area /
+// length (the average width; also right for a slanted or curved strip, unlike the bounding box).
+function pieceShape(cp, faces, scale) {
+  const pts = []; let A = 0;
+  for (const f of faces) {
+    const [a, b, c] = cp.local[f].map(q => [q[0] * scale, q[1] * scale]); pts.push(a, b, c);
+    A += Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
+  }
+  const H = hull(pts); let maxD = 0;
+  for (let deg = 0; deg < 180; deg += 3) { const bx = rotBox(H, deg); maxD = Math.max(maxD, bx.w, bx.h); }
+  return { minW: maxD > 0 ? A / maxD : 0, maxD, area: A };
+}
+// A piece that is fiddly to cut, fold and glue: only 1 or 2 faces, narrower than o.minWidth mm,
+// or smaller than o.minSize mm.
+function fiddly(m, joined, cp, p, o, size, shapeOnly) {
+  if (size <= 2 && !shapeOnly) return true;
+  if (!(o.minWidth > 0) && !(o.minSize > 0)) return false;
+  const sh = pieceShape(cp, p.faces, o.scale);
+  return (o.minWidth > 0 && sh.minW < o.minWidth) || (o.minSize > 0 && sh.maxD < o.minSize);
+}
+// shapeOnly: only narrow or small pieces (not every piece of 1 or 2 faces)
+function growTiny(m, joined, o, relax, shapeOnly) {
+  const t0 = Date.now(), budget = o.growBudget || 2000, avoid = e => (relax ? relax[e] : o.avoid && o.avoid[e]);
   const count = faces => pieceFaceCount(m, joined, faces);
   let moves = 0;
-  for (let pass = 0; pass < 30 && Date.now() - t0 < budget; pass++) {
+  const failed = new Set(); // pieces (by their faces) that could not be helped: do not try again
+  for (let pass = 0; pass < 40 && Date.now() - t0 < budget; pass++) {
     const cp = computePieces(m, joined), size = cp.pieces.map(p => count(p.faces)), touched = new Set();
     let moved = 0;
     for (const S of cp.pieces) {
-      if (size[S.id] > 2 || touched.has(S.id) || Date.now() - t0 > budget) continue;
+      if (touched.has(S.id) || Date.now() - t0 > budget) continue;
+      const sKey = S.faces.length < 40 ? S.faces.slice().sort((x, y) => x - y).join(',') : null;
+      if (sKey && failed.has(sKey)) continue;
+      if (!fiddly(m, joined, cp, S, o, size[S.id], shapeOnly)) continue;
       const inS = new Set(S.faces);
       let done = false;
-      // candidate edges, least sharp fold first
-      const cand = [];
-      for (const f of S.faces) for (const e of m.FE[f]) { const E = m.E[e]; if (E.m && !joined[e] && !avoid(e) && !inS.has(otherFace(E, f))) cand.push([f, e]); }
-      cand.sort((p, q) => m.E[p[1]].bend - m.E[q[1]].bend);
+      // candidate edges: to the neighbour with the longest shared border first (a narrow strip
+      // joins along its long side), then the least sharp fold
+      const cand = [], shared = new Map();
+      for (const f of S.faces) for (const e of m.FE[f]) { const E = m.E[e]; if (E.m && !joined[e] && !avoid(e) && !inS.has(otherFace(E, f))) { cand.push([f, e]); const q = cp.pieceOf[otherFace(E, f)]; shared.set(q, (shared.get(q) || 0) + E.len); } }
+      cand.sort((p, q) => (shared.get(cp.pieceOf[otherFace(m.E[q[1]], q[0])]) - shared.get(cp.pieceOf[otherFace(m.E[p[1]], p[0])])) || (m.E[p[1]].bend - m.E[q[1]].bend));
       for (const [f, e] of cand) {
         {
           const E = m.E[e];
@@ -1151,6 +1177,7 @@ function growTiny(m, joined, o, relax) {
         }
         if (done) break;
       }
+      if (!done && sKey) failed.add(sKey);
     }
     moves += moved;
     if (!moved) break;
@@ -1294,6 +1321,9 @@ function autoPipeline(m, o, onProgress) {
         const relax = new Uint8Array(m.E.length), lim = 85 * Math.PI / 180;
         m.E.forEach((E, i) => { if ((colorAvoid && colorAvoid[i]) || (sharp[i] && E.bend >= lim)) relax[i] = 1; });
         g += growTiny(m, joined, o, relax);
+        // a narrow strip or a very small piece between sharp folds may join a neighbour across any
+        // sharp fold (as a loose piece it can hardly be cut or glued); colour borders stay cut
+        if (o.minWidth > 0 || o.minSize > 0) g += growTiny(m, joined, o, colorAvoid || new Uint8Array(m.E.length), true);
       }
       if (g) repair(m, joined, o);
     }
@@ -1653,7 +1683,7 @@ function simplifyMesh(pos, target, key) {
 const api = {
   nestLayout, simplifyMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
-  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny,
+  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny, pieceShape,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,
   selfOverlaps, treePath, splitEdge, otherFace, hslToRgb, validateComponent, remergePass, repair, scoreJoined
 };
@@ -1929,7 +1959,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8,
+  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
 };
 const S = {
@@ -2065,6 +2095,9 @@ const NL = {
   'Paper for this color (with Pages per color)': 'Papier voor deze kleur (met Pagina’s per kleur)', 'Paper: standard': 'Papier: standaard',
   'Pages per color switched on: every color gets its own pages.': 'Pagina’s per kleur aangezet: elke kleur krijgt eigen pagina’s.',
   '{k} PDFs (one per color) in a ZIP: {n} {pages}, true size (1:1).': '{k} PDF’s (één per kleur) in een ZIP: {n} {pages}, ware grootte (1:1).',
+  'Avoid pieces narrower than': 'Stukken smaller dan dit vermijden', 'Avoid pieces smaller than': 'Stukken kleiner dan dit vermijden',
+  'Narrow strips (average width) are joined to a neighbouring piece where possible. 0 = off.': 'Smalle stroken (gemiddelde breedte) worden waar mogelijk aan een buurstuk vastgemaakt. 0 = uit.',
+  'Very small pieces are joined to a neighbouring piece where possible. 0 = off.': 'Heel kleine stukken worden waar mogelijk aan een buurstuk vastgemaakt. 0 = uit.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2194,6 +2227,8 @@ const TABS = [
     { k: 'sharpDeg', label: 'Sharp from', type: 'number', unit: '°', min: 10, max: 170, step: 5, dep: 'sharpCut', help: 'Folds of this angle or more are cut. 0° = flat, 90° = the corner of a box. Lower = more cuts.' },
     { k: 'maxPieceOn', label: 'Limit piece size', type: 'check', help: 'Smaller pieces are easier to fold and glue, but there are more of them.' },
     { k: 'maxPiece', label: 'Maximum size', type: 'number', unit: 'mm', min: 30, max: 400, step: 5, dep: 'maxPieceOn', help: 'Every piece (with its glue tabs) fits in a square of this size.' },
+    { k: 'minWidth', label: 'Avoid pieces narrower than', type: 'number', unit: 'mm', min: 0, max: 50, step: 1, help: 'Narrow strips (average width) are joined to a neighbouring piece where possible. 0 = off.' },
+    { k: 'minSize', label: 'Avoid pieces smaller than', type: 'number', unit: 'mm', min: 0, max: 100, step: 1, help: 'Very small pieces are joined to a neighbouring piece where possible. 0 = off.' },
     { k: 'maxFaces', label: 'Maximum faces per piece', type: 'number', min: 0, max: 500, step: 1, help: 'Smaller pieces with fewer faces are easier to fold. A flat area made of several triangles (for example a square) counts as one face. 0 = no limit.' },
     { k: 'cutColors', label: 'Cut along color borders', type: 'check', help: 'Every piece gets a single color – useful for colored paper.' },
     { k: 'mergeIslands', label: 'Merge tiny color islands', type: 'check', dep: 'cutColors', help: 'Color islands of 1–2 triangles join a neighbouring piece (their color is printed) instead of becoming a tiny piece.' },
@@ -2298,7 +2333,7 @@ function settingsDone() {
   applySettings(keys);
 }
 // Apply several changed settings at once: unfold again at most once.
-const RELAYOUT = ['maxFaces', 'pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
+const RELAYOUT = ['minWidth', 'minSize', 'maxFaces', 'pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
 async function applySettings(keys) {
   if (keys.includes('lang')) applyLanguage();
   if (!S.mesh) return;
@@ -2375,7 +2410,7 @@ function applySetting(k) {
   if (k === 'pieceGap') { S.world = null; refresh(); fitView(); return; }
   if (k.startsWith('sil')) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
   if (['paper', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
-  if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'maxFaces', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
+  if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'minWidth', 'minSize', 'maxFaces', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
   if (k === 'pageCols') {
     const old = S.prevCols || 3, nc = pageCols();
     for (const p of S.cp.pieces) if (p.page >= 0) { const a = pageOrigin(p.page, old), b = pageOrigin(p.page, nc); p.x += b[0] - a[0]; p.y += b[1] - a[1]; }
@@ -2769,7 +2804,7 @@ function autoOptions() {
     for (const pp of papers) { W = Math.max(W, lim[pp][0]); H = Math.max(H, lim[pp][1]); }
   }
   return { scale: S.scale, W, H, faceWH, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
-    sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
+    sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), minWidth: Math.max(0, +st.minWidth || 0), minSize: Math.max(0, +st.minSize || 0), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
 }
 function warnRecut() {
   const bad = S.cp ? S.cp.pieces.filter(p => p.off || p.big).length : 0;

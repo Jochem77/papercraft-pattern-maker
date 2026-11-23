@@ -893,21 +893,47 @@ function remergePass(m, joined, o) {
 // both pieces valid (no overlap, room for tabs, on the paper, limits) are made.
 // relax: when given, only these edges may not be joined (used to let tiny pieces that are
 // enclosed by sharp folds join a neighbour across their least sharp fold; colour borders stay).
-function growTiny(m, joined, o, relax) {
-  const t0 = Date.now(), budget = o.growBudget || 1500, avoid = e => (relax ? relax[e] : o.avoid && o.avoid[e]);
+// Width and length of a piece in mm: length = longest extent over all rotations, width = area /
+// length (the average width; also right for a slanted or curved strip, unlike the bounding box).
+function pieceShape(cp, faces, scale) {
+  const pts = []; let A = 0;
+  for (const f of faces) {
+    const [a, b, c] = cp.local[f].map(q => [q[0] * scale, q[1] * scale]); pts.push(a, b, c);
+    A += Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
+  }
+  const H = hull(pts); let maxD = 0;
+  for (let deg = 0; deg < 180; deg += 3) { const bx = rotBox(H, deg); maxD = Math.max(maxD, bx.w, bx.h); }
+  return { minW: maxD > 0 ? A / maxD : 0, maxD, area: A };
+}
+// A piece that is fiddly to cut, fold and glue: only 1 or 2 faces, narrower than o.minWidth mm,
+// or smaller than o.minSize mm.
+function fiddly(m, joined, cp, p, o, size, shapeOnly) {
+  if (size <= 2 && !shapeOnly) return true;
+  if (!(o.minWidth > 0) && !(o.minSize > 0)) return false;
+  const sh = pieceShape(cp, p.faces, o.scale);
+  return (o.minWidth > 0 && sh.minW < o.minWidth) || (o.minSize > 0 && sh.maxD < o.minSize);
+}
+// shapeOnly: only narrow or small pieces (not every piece of 1 or 2 faces)
+function growTiny(m, joined, o, relax, shapeOnly) {
+  const t0 = Date.now(), budget = o.growBudget || 2000, avoid = e => (relax ? relax[e] : o.avoid && o.avoid[e]);
   const count = faces => pieceFaceCount(m, joined, faces);
   let moves = 0;
-  for (let pass = 0; pass < 30 && Date.now() - t0 < budget; pass++) {
+  const failed = new Set(); // pieces (by their faces) that could not be helped: do not try again
+  for (let pass = 0; pass < 40 && Date.now() - t0 < budget; pass++) {
     const cp = computePieces(m, joined), size = cp.pieces.map(p => count(p.faces)), touched = new Set();
     let moved = 0;
     for (const S of cp.pieces) {
-      if (size[S.id] > 2 || touched.has(S.id) || Date.now() - t0 > budget) continue;
+      if (touched.has(S.id) || Date.now() - t0 > budget) continue;
+      const sKey = S.faces.length < 40 ? S.faces.slice().sort((x, y) => x - y).join(',') : null;
+      if (sKey && failed.has(sKey)) continue;
+      if (!fiddly(m, joined, cp, S, o, size[S.id], shapeOnly)) continue;
       const inS = new Set(S.faces);
       let done = false;
-      // candidate edges, least sharp fold first
-      const cand = [];
-      for (const f of S.faces) for (const e of m.FE[f]) { const E = m.E[e]; if (E.m && !joined[e] && !avoid(e) && !inS.has(otherFace(E, f))) cand.push([f, e]); }
-      cand.sort((p, q) => m.E[p[1]].bend - m.E[q[1]].bend);
+      // candidate edges: to the neighbour with the longest shared border first (a narrow strip
+      // joins along its long side), then the least sharp fold
+      const cand = [], shared = new Map();
+      for (const f of S.faces) for (const e of m.FE[f]) { const E = m.E[e]; if (E.m && !joined[e] && !avoid(e) && !inS.has(otherFace(E, f))) { cand.push([f, e]); const q = cp.pieceOf[otherFace(E, f)]; shared.set(q, (shared.get(q) || 0) + E.len); } }
+      cand.sort((p, q) => (shared.get(cp.pieceOf[otherFace(m.E[q[1]], q[0])]) - shared.get(cp.pieceOf[otherFace(m.E[p[1]], p[0])])) || (m.E[p[1]].bend - m.E[q[1]].bend));
       for (const [f, e] of cand) {
         {
           const E = m.E[e];
@@ -941,6 +967,7 @@ function growTiny(m, joined, o, relax) {
         }
         if (done) break;
       }
+      if (!done && sKey) failed.add(sKey);
     }
     moves += moved;
     if (!moved) break;
@@ -1084,6 +1111,9 @@ function autoPipeline(m, o, onProgress) {
         const relax = new Uint8Array(m.E.length), lim = 85 * Math.PI / 180;
         m.E.forEach((E, i) => { if ((colorAvoid && colorAvoid[i]) || (sharp[i] && E.bend >= lim)) relax[i] = 1; });
         g += growTiny(m, joined, o, relax);
+        // a narrow strip or a very small piece between sharp folds may join a neighbour across any
+        // sharp fold (as a loose piece it can hardly be cut or glued); colour borders stay cut
+        if (o.minWidth > 0 || o.minSize > 0) g += growTiny(m, joined, o, colorAvoid || new Uint8Array(m.E.length), true);
       }
       if (g) repair(m, joined, o);
     }
@@ -1443,7 +1473,7 @@ function simplifyMesh(pos, target, key) {
 const api = {
   nestLayout, simplifyMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
-  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny,
+  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny, pieceShape,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,
   selfOverlaps, treePath, splitEdge, otherFace, hslToRgb, validateComponent, remergePass, repair, scoreJoined
 };

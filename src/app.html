@@ -478,7 +478,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8,
+  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
 };
 const S = {
@@ -614,6 +614,9 @@ const NL = {
   'Paper for this color (with Pages per color)': 'Papier voor deze kleur (met Pagina’s per kleur)', 'Paper: standard': 'Papier: standaard',
   'Pages per color switched on: every color gets its own pages.': 'Pagina’s per kleur aangezet: elke kleur krijgt eigen pagina’s.',
   '{k} PDFs (one per color) in a ZIP: {n} {pages}, true size (1:1).': '{k} PDF’s (één per kleur) in een ZIP: {n} {pages}, ware grootte (1:1).',
+  'Avoid pieces narrower than': 'Stukken smaller dan dit vermijden', 'Avoid pieces smaller than': 'Stukken kleiner dan dit vermijden',
+  'Narrow strips (average width) are joined to a neighbouring piece where possible. 0 = off.': 'Smalle stroken (gemiddelde breedte) worden waar mogelijk aan een buurstuk vastgemaakt. 0 = uit.',
+  'Very small pieces are joined to a neighbouring piece where possible. 0 = off.': 'Heel kleine stukken worden waar mogelijk aan een buurstuk vastgemaakt. 0 = uit.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -743,6 +746,8 @@ const TABS = [
     { k: 'sharpDeg', label: 'Sharp from', type: 'number', unit: '°', min: 10, max: 170, step: 5, dep: 'sharpCut', help: 'Folds of this angle or more are cut. 0° = flat, 90° = the corner of a box. Lower = more cuts.' },
     { k: 'maxPieceOn', label: 'Limit piece size', type: 'check', help: 'Smaller pieces are easier to fold and glue, but there are more of them.' },
     { k: 'maxPiece', label: 'Maximum size', type: 'number', unit: 'mm', min: 30, max: 400, step: 5, dep: 'maxPieceOn', help: 'Every piece (with its glue tabs) fits in a square of this size.' },
+    { k: 'minWidth', label: 'Avoid pieces narrower than', type: 'number', unit: 'mm', min: 0, max: 50, step: 1, help: 'Narrow strips (average width) are joined to a neighbouring piece where possible. 0 = off.' },
+    { k: 'minSize', label: 'Avoid pieces smaller than', type: 'number', unit: 'mm', min: 0, max: 100, step: 1, help: 'Very small pieces are joined to a neighbouring piece where possible. 0 = off.' },
     { k: 'maxFaces', label: 'Maximum faces per piece', type: 'number', min: 0, max: 500, step: 1, help: 'Smaller pieces with fewer faces are easier to fold. A flat area made of several triangles (for example a square) counts as one face. 0 = no limit.' },
     { k: 'cutColors', label: 'Cut along color borders', type: 'check', help: 'Every piece gets a single color – useful for colored paper.' },
     { k: 'mergeIslands', label: 'Merge tiny color islands', type: 'check', dep: 'cutColors', help: 'Color islands of 1–2 triangles join a neighbouring piece (their color is printed) instead of becoming a tiny piece.' },
@@ -847,7 +852,7 @@ function settingsDone() {
   applySettings(keys);
 }
 // Apply several changed settings at once: unfold again at most once.
-const RELAYOUT = ['maxFaces', 'pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
+const RELAYOUT = ['minWidth', 'minSize', 'maxFaces', 'pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
 async function applySettings(keys) {
   if (keys.includes('lang')) applyLanguage();
   if (!S.mesh) return;
@@ -924,7 +929,7 @@ function applySetting(k) {
   if (k === 'pieceGap') { S.world = null; refresh(); fitView(); return; }
   if (k.startsWith('sil')) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
   if (['paper', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
-  if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'maxFaces', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
+  if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'minWidth', 'minSize', 'maxFaces', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
   if (k === 'pageCols') {
     const old = S.prevCols || 3, nc = pageCols();
     for (const p of S.cp.pieces) if (p.page >= 0) { const a = pageOrigin(p.page, old), b = pageOrigin(p.page, nc); p.x += b[0] - a[0]; p.y += b[1] - a[1]; }
@@ -1318,7 +1323,7 @@ function autoOptions() {
     for (const pp of papers) { W = Math.max(W, lim[pp][0]); H = Math.max(H, lim[pp][1]); }
   }
   return { scale: S.scale, W, H, faceWH, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
-    sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
+    sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), minWidth: Math.max(0, +st.minWidth || 0), minSize: Math.max(0, +st.minSize || 0), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
 }
 function warnRecut() {
   const bad = S.cp ? S.cp.pieces.filter(p => p.off || p.big).length : 0;
