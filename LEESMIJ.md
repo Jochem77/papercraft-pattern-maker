@@ -34,6 +34,7 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
 4. Onder **Instellingen** kies je onder meer:
    - de afmetingen van het model;
    - het papier (A4 of A3) en de marges;
+   - de indeling op de pagina’s: *Normaal*, *Zo weinig mogelijk papier* (zoekt een paar seconden naar de indeling met de minste pagina’s) of *Buren bij elkaar* (stukken die aan elkaar vastzitten liggen naast elkaar);
    - de plakstrookjes;
    - het lettertype en de grootte van de nummers;
    - de opties voor de snijplotter.

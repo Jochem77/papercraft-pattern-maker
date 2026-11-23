@@ -475,7 +475,7 @@ const $ = id => document.getElementById(id);
 const PAPER = { A4: [210, 297], A3: [297, 420] };
 const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
-  size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2,
+  size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
   tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
@@ -597,6 +597,8 @@ const NL = {
   'Smaller pieces with fewer faces are easier to fold. A flat area made of several triangles (for example a square) counts as one face. 0 = no limit.': 'Kleinere stukken met minder vlakken zijn makkelijker te vouwen. Een plat vlak van meerdere driehoeken (bijvoorbeeld een vierkant) telt als één vlak. 0 = geen grens.',
   'Open project (Ctrl+Shift+O)': 'Project openen (Ctrl+Shift+O)', 'Creating files…': 'Bestanden maken…', 'Export failed: ': 'Exporteren mislukt: ',
   'ZIP with {n} SVG {pages}, the PDF and the project file': 'ZIP met {n} SVG-{pages}, de PDF en het projectbestand',
+  'Arrangement': 'Indeling', 'Normal': 'Normaal', 'Fewest pages': 'Zo weinig mogelijk papier', 'Neighbours together': 'Buren bij elkaar',
+  'Fewest pages: tries several arrangements and keeps the one with the fewest pages (takes a few seconds). Neighbours together: pieces that are joined in the model lie next to each other, which makes building easier but can take more paper.': 'Zo weinig mogelijk papier: probeert meerdere indelingen en houdt die met de minste pagina’s (duurt een paar seconden). Buren bij elkaar: stukken die in het model aan elkaar vastzitten liggen naast elkaar; dat bouwt makkelijker, maar kan meer papier kosten.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -712,6 +714,7 @@ const TABS = [
     { k: 'orient', label: 'Orientation', type: 'select', opts: { portrait: 'Portrait', landscape: 'Landscape' } },
     { k: 'margin', label: 'Margin', type: 'number', unit: 'mm', min: 0, max: 40, step: 0.5, help: 'Empty border all around; most printers cannot print up to the edge.' },
     { section: 'Layout' },
+    { k: 'layoutMode', label: 'Arrangement', type: 'select', opts: { normal: 'Normal', compact: 'Fewest pages', together: 'Neighbours together' }, help: 'Fewest pages: tries several arrangements and keeps the one with the fewest pages (takes a few seconds). Neighbours together: pieces that are joined in the model lie next to each other, which makes building easier but can take more paper.' },
     { k: 'pieceGap', label: 'Space between pieces', type: 'number', unit: 'mm', min: 0, max: 10, step: 0.5, help: 'Room to cut between the pieces.' },
     { k: 'pageCols', label: 'Pages per row', type: 'number', min: 1, max: 12, step: 1, help: 'Only for the on-screen view.' }] },
   { id: 'tabs', icon: '🧩', title: 'Glue tabs', intro: 'Shape of the flaps used to glue the pieces together.', preview: 'tab', items: [
@@ -902,6 +905,7 @@ function applySetting(k) {
   if (k === 'flatDeg') { Core.setFlat(S.mesh, S.set.flatDeg); refresh(); return; }
   if (k === 'lang') { applyLanguage(); return; }
   if (k === 'printedInside') { rebuildMeshSide(); return; }
+  if (k === 'layoutMode') { busy(true, tr('Arranging pieces…')); setTimeout(() => { S.world = null; refresh(); fitView(); busy(false); }, 40); return; }
   if (k === 'pieceGap') { S.world = null; refresh(); fitView(); return; }
   if (k.startsWith('sil')) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
   if (['paper', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
@@ -1270,6 +1274,8 @@ function autoOptions() {
   // met Silhouette-markeringen: stuk moet passen in de rechthoek die vrij is van alle hoekzones (+1 mm rasterspeling)
   const ob = silObstacles();
   if (ob.length) { W -= ob[0].w + 1; H -= ob[0].h + 1; }
+  // a little room for the space between pieces and the raster used to lay out the pages
+  W -= st.pieceGap + 3; H -= st.pieceGap + 3;
   if (st.maxPieceOn && st.maxPiece > 0) { W = Math.min(W, st.maxPiece); H = Math.min(H, st.maxPiece); }
   return { scale: S.scale, W, H, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
     sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
@@ -1291,7 +1297,9 @@ function runAuto(initial) {
   const o = autoOptions(), avoid = avoidEdges();
   busy(true, tr('Unfolding…'));
   return new Promise(resolve => {
-    const done = joined => {
+    const done = async joined => {
+      // "fewest pages" takes a few seconds: show it before the layout blocks the screen
+      if (S.set.layoutMode === 'compact') { busy(true, tr('Arranging pieces…')); $('busyBar').style.width = '0'; await new Promise(r => setTimeout(r, 40)); }
       busy(false);
       if (!initial) pushUndo();
       S.joined = joined; S.tabUser.fill(-1); S.world = null; S.manual = false;
@@ -1356,7 +1364,8 @@ function refresh() {
   S.cp = cp;
   S.lmm = Core.toMM(cp.local, S.scale);
   const st = S.set;
-  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'fin' });
+  const fitWH = st.tabStyle === 'fin' ? autoOptions() : null; // flaps only where the piece still fits the paper
+  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'fin', W: fitWH && fitWH.W, H: fitWH && fitWH.H });
   S.so = Core.selfOverlaps(cp, S.lmm);
   numberEdges();
   // plaats van elk stuk afleiden uit de vorige wereld-coördinaten (stukken blijven waar ze waren)
@@ -1676,14 +1685,86 @@ function dominantColor(p) {
 
 // Stukken zo dicht mogelijk op de pagina's leggen (echte vorm, met draaien)
 function piecePolys(p) { return p.d.faces.map(f => f.pts).concat(p.d.tabs.map(t => t.poly)); }
+// Pieces that share a cut edge in the model, with the length of that edge (for "Neighbours together").
+function pieceNeighbours() {
+  const m = S.mesh, cp = S.cp, w = cp.pieces.map(() => new Map());
+  m.E.forEach((E, e) => {
+    if (!E.m || S.joined[e]) return;
+    const a = cp.pieceOf[E.f[0]], b = cp.pieceOf[E.f[1]]; if (a === b) return;
+    w[a].set(b, (w[a].get(b) || 0) + E.len); w[b].set(a, (w[b].get(a) || 0) + E.len);
+  });
+  return w;
+}
+// Order for "Neighbours together": walk through the model from piece to neighbour (longest shared
+// edge first), starting with the largest piece, so consecutive pieces belong together.
+function neighbourOrder(list, w) {
+  const inList = new Set(list.map(p => p.id)), seen = new Set(), order = [];
+  const bySize = list.slice().sort((a, b) => b.faces.length - a.faces.length);
+  for (const start of bySize) {
+    if (seen.has(start.id)) continue;
+    const stack = [start.id]; seen.add(start.id);
+    while (stack.length) {
+      const id = stack.pop(); order.push(id);
+      const nb = [...w[id].entries()].filter(([q]) => inList.has(q) && !seen.has(q)).sort((x, y) => x[1] - y[1]);
+      for (const [q] of nb) { seen.add(q); stack.push(q); } // longest shared edge is popped first
+    }
+  }
+  return order;
+}
+// Arrange one group of pieces on pages, according to the chosen arrangement.
+function nestGroup(items, list, W, H, budget) {
+  const mode = S.set.layoutMode || 'normal';
+  const opt = { gap: S.set.pieceGap, obstacles: silObstacles(), cell: W * H > 80000 ? 1.5 : 1, angleStep: items.length > 80 ? 30 : 15 };
+  if (mode === 'together') {
+    const w = pieceNeighbours();
+    return Core.nestLayout(items, W, H, { ...opt, order: neighbourOrder(list, w), near: new Map(list.map(p => [p.id, [...w[p.id].keys()]])) });
+  }
+  if (mode !== 'compact') return Core.nestLayout(items, W, H, opt);
+  // fewest pages: try several orders and finer rotations within a time budget; keep the best
+  const t0 = Date.now();
+  const area = new Map(items.map(it => { let a = 0; for (const P of it.polys) { let s2 = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; s2 += p[0] * q[1] - q[0] * p[1]; } a += Math.abs(s2) / 2; } return [it.id, a]; }));
+  const span = new Map(items.map(it => { const b = Core.bbox(it.polys.flat()); return [it.id, Math.max(b[2] - b[0], b[3] - b[1])]; }));
+  const ids = items.map(it => it.id);
+  let seed = 1;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const orders = [
+    ids.slice().sort((a, b) => area.get(b) - area.get(a)),
+    ids.slice().sort((a, b) => span.get(b) - span.get(a)),
+  ];
+  // the normal arrangement first, so the result is never worse; then a finer raster (1 mm, which
+  // packs noticeably tighter), finer angles and other orders, as long as there is time
+  const first = Core.nestLayout(items, W, H, opt);
+  let best = { ...first, score: first.pages + first.lastFill * 0.999, order: orders[0] };
+  const fine = { ...opt, cell: 1, angleStep: 15 };
+  let per = (Date.now() - t0) * (opt.cell === 1 ? 1 : 2.3); // a 1 mm raster takes about 2.3x longer
+  const tries = [{ ...fine, order: orders[0] }, { ...fine, angleStep: 10, order: orders[0] }, { ...fine, order: orders[1] }];
+  for (let k = 0; ; k++) {
+    if (Date.now() - t0 + per > budget) break; // the next try would not fit in the time
+    let o2 = tries[k];
+    if (!o2) { // shake the best order found so far a little
+      const order = best.order.slice();
+      for (let i = 0; i < order.length - 1; i++) if (rnd() < 0.25) { const t = order[i]; order[i] = order[i + 1]; order[i + 1] = t; }
+      o2 = { ...fine, order };
+    }
+    const t1 = Date.now();
+    const r = Core.nestLayout(items, W, H, o2);
+    per = Math.max(per * 0.5, Date.now() - t1);
+    const order = o2.order;
+    const score = r.pages + r.lastFill * 0.999;
+    if (!best || score < best.score) best = { ...r, score, order };
+    if (k > 40) break;
+  }
+  return best;
+}
 function autoLayout() {
   const [W, H] = printable(), mg = effMargin();
   const groups = new Map();
   for (const p of S.cp.pieces) { const k = S.set.groupColors ? dominantColor(p) : ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
-  let base = 0; S.pageLabels = [];
+  let base = 0, left = groups.size; S.pageLabels = [];
+  const deadline = Date.now() + 10000; // "fewest pages": 10 seconds in total, shared by the colour groups
   for (const [key, list] of groups) {
     const items = list.map(p => ({ id: p.id, polys: piecePolys(p) }));
-    const r = Core.nestLayout(items, W, H, { gap: S.set.pieceGap, obstacles: silObstacles(), cell: W * H > 80000 ? 1.5 : 1, angleStep: items.length > 80 ? 30 : 15 });
+    const r = nestGroup(items, list, W, H, Math.max(0, (deadline - Date.now()) / left--));
     for (const pl of r.placements) {
       const p = S.cp.pieces[pl.id], o = pageOrigin(base + pl.page);
       p.rot = pl.deg; p.x = o[0] + mg + pl.x; p.y = o[1] + mg + pl.y;
@@ -2776,7 +2857,7 @@ setTool('select');
 const qp = new URLSearchParams(location.search).get('model');
 if (qp) fetch(qp).then(r => r.arrayBuffer()).then(b => loadModelBuffer(b, qp.split('/').pop(), null)).catch(e => toast(tr('Loading failed: ') + e.message));
 window.__S = S;
-window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter };
+window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter, piecePolys, printable, silObstacles };
 </script>
 </body>
 </html>

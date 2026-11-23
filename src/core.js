@@ -603,12 +603,18 @@ function layoutTabs(m, cp, lmm, joined, opts) {
   let tabs2 = null;
   if (opts.both) {
     tabs2 = new Array(nE).fill(null);
+    // outline of every piece so far (faces + tabs), to check that a flap keeps it on the paper
+    const hullOf = pieces.map(p => { const pts = []; for (const f of p.faces) pts.push(...lmm[f]); for (const o of placed[p.id]) pts.push(...o.poly); return hull(pts); });
     for (const e of cut) {
       if (!tabs[e] || tabs[e].bad) continue;
-      const E = m.E[e], f2 = E.f[0] === tabFace[e] ? E.f[1] : E.f[0];
+      const E = m.E[e], f2 = E.f[0] === tabFace[e] ? E.f[1] : E.f[0], pid = pieceOf[f2];
       for (const sc of steps) {
         const r = tryTab(e, f2, sc);
-        if (r.ok) { tabs2[e] = { poly: r.t.poly, h: r.t.h, f: f2 }; placed[pieceOf[f2]].push({ poly: r.t.poly, bb: r.bb, e, f: f2 }); break; }
+        if (!r.ok) continue;
+        const H = hull(hullOf[pid].concat(r.t.poly));
+        if (opts.W && !fitsRect(H, opts.W, opts.H)) continue;
+        tabs2[e] = { poly: r.t.poly, h: r.t.h, f: f2 }; placed[pid].push({ poly: r.t.poly, bb: r.bb, e, f: f2 }); hullOf[pid] = H;
+        break;
       }
     }
   }
@@ -1081,6 +1087,10 @@ function autoPipeline(m, o, onProgress) {
 // ---------------------------------------------------------------- nesting (stukken zo dicht mogelijk op pagina's)
 // items: [{ id, polys: [[ [x,y], ... ], ...] }] (convexe polygonen in lokale mm)
 // W, H: printbaar gebied (mm). o: { gap (mm), cell (mm), angleStep (graden) }
+//   o.order: item ids in the order to place them (default: largest first)
+//   o.near: Map id -> ids of neighbouring pieces; each piece then goes as close as possible to its
+//           neighbours that are already placed, and earlier pages are not filled up again
+//           (so neighbours stay together)
 // Resultaat: [{ id, page, deg, x, y }] met wereld = R(deg)·lokaal + (x, y), relatief t.o.v. de linkerbovenhoek van het printbare gebied.
 function nestLayout(items, W, H, o) {
   o = o || {};
@@ -1145,7 +1155,7 @@ function nestLayout(items, W, H, o) {
   }
 
   function newPage() {
-    const pg = { occ: new Uint8Array(GW * GH), pre: Array.from({ length: GH }, () => new Int32Array(GW + 1)), used: 0 };
+    const pg = { occ: new Uint8Array(GW * GH), pre: Array.from({ length: GH }, () => new Int32Array(GW + 1)), used: 0, bottom: 0 };
     // vaste obstakels (bijv. registratiemarkeringen), in mm t.o.v. het printbare gebied
     for (const ob of o.obstacles || []) {
       const c0 = Math.max(0, Math.floor(ob.x / cell) + d), c1 = Math.min(GW - 1, Math.ceil((ob.x + ob.w) / cell) + d);
@@ -1182,18 +1192,24 @@ function nestLayout(items, W, H, o) {
     }
     pg.used += M.filled;
   }
-  // beste plek op een pagina: zo laag mogelijke onderkant, dan zo ver mogelijk links
-  function bestOn(pg, masks) {
+  // beste plek op een pagina: zo laag mogelijke onderkant, dan zo ver mogelijk links.
+  // With "near" (cells of neighbours already on this page): as close as possible to them.
+  function bestOn(pg, masks, near) {
     let best = null;
     for (const M of masks) {
       if (M.w > GW || M.h > GH) continue;
       for (let py = 0; py + M.h <= GH; py++) {
-        if (best && py + M.h > best.bottom) break;
+        if (best && !near && py + M.h > best.bottom) break;
         let found = -1;
         for (let px = 0; px + M.w <= GW;) { const j = fits(pg, M, px, py); if (!j) { found = px; break; } px += j; }
         if (found >= 0) {
           const bottom = py + M.h;
-          if (!best || bottom < best.bottom || (bottom === best.bottom && found < best.px)) best = { M, px: found, py, bottom };
+          let cost = bottom * 1e3 + found;
+          if (near && near.length) {
+            const cx = found + M.w / 2, cy = py + M.h / 2;
+            cost = Math.min(...near.map(q => Math.hypot(q[0] - cx, q[1] - cy))) + 0.15 * bottom;
+          }
+          if (!best || cost < best.cost) best = { M, px: found, py, bottom, cost };
           break;
         }
       }
@@ -1209,13 +1225,16 @@ function nestLayout(items, W, H, o) {
     const area = Math.min(...masks.map(M => M.filled));
     return { it, masks, area };
   });
-  prepared.sort((a, b) => b.area - a.area);
-  const pages = [], out = [];
+  if (o.order) { const pos = new Map(o.order.map((id, i) => [id, i])); prepared.sort((a, b) => (pos.has(a.it.id) ? pos.get(a.it.id) : 1e9) - (pos.has(b.it.id) ? pos.get(b.it.id) : 1e9)); }
+  else prepared.sort((a, b) => b.area - a.area);
+  const pages = [], out = [], at = new Map(); // at: id -> [page, cx, cy] in cells
   for (const pr of prepared) {
     let placed = null;
-    for (let pi = 0; pi < pages.length && !placed; pi++) {
+    const nb = o.near ? (o.near.get(pr.it.id) || []).filter(id => at.has(id)).map(id => at.get(id)) : null;
+    // with "near": only the last page (neighbours stay together), else the first page that fits
+    for (let pi = o.near ? Math.max(0, pages.length - 1) : 0; pi < pages.length && !placed; pi++) {
       if (GW * GH - pages[pi].used < pr.area) continue;
-      const b = bestOn(pages[pi], pr.masks);
+      const b = bestOn(pages[pi], pr.masks, nb ? nb.filter(q => q[0] === pi).map(q => [q[1], q[2]]) : null);
       if (b) placed = { pi, ...b };
     }
     if (!placed) {
@@ -1232,10 +1251,13 @@ function nestLayout(items, W, H, o) {
     }
     stamp(pages[placed.pi], placed.M, placed.px, placed.py);
     const M = placed.M;
+    pages[placed.pi].bottom = Math.max(pages[placed.pi].bottom, placed.py + M.h);
+    at.set(pr.it.id, [placed.pi, placed.px + M.w / 2, placed.py + M.h / 2]);
     // raster-cel (0,0) ligt op (-d, -d) cellen t.o.v. het printbare gebied
     out.push({ id: pr.it.id, page: placed.pi, deg: M.deg, x: (placed.px - d) * cell - M.ox, y: (placed.py - d) * cell - M.oy });
   }
-  return { placements: out, pages: pages.length };
+  // lastFill: how far the last page is filled (0..1), to compare layouts with the same number of pages
+  return { placements: out, pages: pages.length, lastFill: pages.length ? pages[pages.length - 1].bottom / GH : 0 };
 }
 
 // ---------------------------------------------------------------- simplify (quadric edge collapse)
