@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Slits as narrow slots** for *Tab and flap*: the slit is now cut as a slot of *Slit width* (default 0.4 mm, about the thickness of photo card; 0 = a single cut as before), so the tab goes through without forcing the card apart. *Extra slit length* (default 0.6 mm, was a fixed 0.4 mm) sets how much longer the slit is than the tab.
 - **Glueless insert tabs without barbs** (default): the tabs of *Tab and flap* are now straight with a chamfered point and a little narrower than the slit, so they slide in easily; they keep the edges in line. The barbs were too long to push through the card. They are still available with *Settings → Glue tabs → Barbs on the insert tabs*, now with an adjustable *Barb size* (how far each barb sticks out past the slit; default 0.8 mm instead of 0.7–2 mm).
 
 ## [1.0.0-beta.4] - 2026-11-23
