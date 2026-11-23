@@ -586,6 +586,8 @@ function layoutTabs(m, cp, lmm, joined, opts) {
   const tabs2 = opts.both ? new Array(nE).fill(null) : null;
   const hullOf = opts.both ? pieces.map(p => { const pts = []; for (const f of p.faces) pts.push(...lmm[f]); return hull(pts); }) : null;
   const flap = (e, f2) => {
+    // opts.pairMin: only seams of at least this length (mm) get two flaps
+    if (opts.pairMin) { const i = m.FE[f2].indexOf(e), Q = lmm[f2]; if (Math.hypot(Q[(i + 1) % 3][0] - Q[i][0], Q[(i + 1) % 3][1] - Q[i][1]) < opts.pairMin) return; }
     const pid = pieceOf[f2];
     for (const sc of steps) {
       const r = tryTab(e, f2, sc);
@@ -785,7 +787,8 @@ function validateComponent(m, joined, seed, o, info) {
   for (const e of [...cut].sort((a, b) => m.E[b].len - m.E[a].len)) {
     const E = m.E[e], sides = E.f.filter(f => local.has(f));
     // o.pair (two flaps glued together): every side of the seam in this piece needs its own flap
-    if (o.pair) {
+    // (only seams of at least o.pairMin mm; shorter seams get one normal tab, as below)
+    if (o.pair && E.len * o.scale >= (o.pairMin || 0)) {
       const hits = [];
       for (const f of sides) if (!tabOn(e, f, hits)) { if (!info) return false; ok = false; for (const h of hits) conf.add(h); }
       continue;
