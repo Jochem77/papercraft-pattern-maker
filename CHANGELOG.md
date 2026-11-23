@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Glueless insert tabs without barbs** (default): the tabs of *Tab and flap* are now straight with a chamfered point and a little narrower than the slit, so they slide in easily; they keep the edges in line. The barbs were too long to push through the card. They are still available with *Settings → Glue tabs → Barbs on the insert tabs*.
+
 ## [1.0.0-beta.4] - 2026-11-23
 
 ### Added
