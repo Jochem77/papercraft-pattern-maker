@@ -2157,7 +2157,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', finBarbs: false, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
+  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', finBarbs: false, finBarbW: 0.8, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
 };
 const S = {
@@ -2309,6 +2309,8 @@ const NL = {
   'Name of this material: on the pages and in the file name of its PDF': 'Naam van dit materiaal: staat op de pagina’s en in de bestandsnaam van de PDF',
   'Barbs on the insert tabs': 'Weerhaakjes aan de insteekflapjes',
   'Off: the tabs are straight with a pointed end and slide easily through the slit; they only keep the edges in line. On: small barbs hook behind the slit and hold the seam, but they are harder to push through.': 'Uit: de flapjes zijn recht met een spitse punt en schuiven makkelijk door de sneet; ze houden alleen de randen recht tegen elkaar. Aan: kleine weerhaakjes haken achter de sneet en houden de naad vast, maar zijn lastiger door de sneet te duwen.',
+  'Barb size': 'Grootte weerhaakjes',
+  'How far each barb sticks out past the slit, on both sides. Smaller barbs go through the slit more easily but hold less. Thick card: about 0.5–1 mm.': 'Hoe ver elk weerhaakje aan beide kanten buiten de sneet uitsteekt. Kleinere haakjes gaan makkelijker door de sneet maar houden minder vast. Dik karton: ongeveer 0,5–1 mm.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2433,7 +2435,8 @@ const TABS = [
     { k: 'tabAngle', label: 'Angle', type: 'number', unit: '°', min: 15, max: 85, step: 1, help: 'Slope of the sides; smaller = more pointed.' },
     { k: 'minTab', label: 'Minimum width', type: 'number', unit: '%', min: 30, max: 100, step: 5, help: 'Where space is tight, a tab may become this much narrower (or more pointed).' },
     { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', fin: 'Tab and flap (no glue, hidden)' }, help: 'Without glue. Tab and flap: the other piece gets a flap with a slit on its fold line; the tab goes through the slit, so tab and flap cross at the seam and keep the edges in line (with barbs they also hook it tight). Nothing shows on the outside. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room, a normal glue tab is used.' },
-    { k: 'finBarbs', label: 'Barbs on the insert tabs', type: 'check', dep: 'tabStyle=fin', help: 'Off: the tabs are straight with a pointed end and slide easily through the slit; they only keep the edges in line. On: small barbs hook behind the slit and hold the seam, but they are harder to push through.' }] },
+    { k: 'finBarbs', label: 'Barbs on the insert tabs', type: 'check', dep: 'tabStyle=fin', help: 'Off: the tabs are straight with a pointed end and slide easily through the slit; they only keep the edges in line. On: small barbs hook behind the slit and hold the seam, but they are harder to push through.' },
+    { k: 'finBarbW', label: 'Barb size', type: 'number', unit: 'mm', min: 0.2, max: 3, step: 0.1, dep: 'finBarbs', help: 'How far each barb sticks out past the slit, on both sides. Smaller barbs go through the slit more easily but hold less. Thick card: about 0.5–1 mm.' }] },
   { id: 'auto', icon: '✂️', title: 'Automatic unfolding', intro: 'How the model is divided into pieces automatically.', items: [
     { k: 'pieceShape', label: 'Shape of the pieces', type: 'select', opts: { large: 'Large (fewest pieces)', compact: 'Compact', vcompact: 'Very compact' }, help: 'Compact pieces have no long arms or ragged edges, so they are easier to fold and glue. They are a bit more pieces.' },
     { k: 'sharpCut', label: 'Cut at sharp folds', type: 'check', help: 'Sharp folds become a cut with a glue tab: easier to build than folding a sharp corner.' },
@@ -2637,7 +2640,7 @@ function applySetting(k) {
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
   if (k === 'tabStyle' && (S.set.tabStyle === 'fin' || (S.tl && S.tl.tabs2))) { S.world = null; refresh(); fitView(); return; }
-  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle', 'cleanFaces', 'scoreMinDeg', 'finBarbs'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
+  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle', 'cleanFaces', 'scoreMinDeg', 'finBarbs', 'finBarbW'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
 }
 
 // ---------------------------------------------------------------- bestanden
@@ -3352,7 +3355,7 @@ function gluelessTab(f, i, t) {
   const tooth = (cx, wseg) => {
     if (!barbs) return plain(cx, wseg);
     const wh = Math.min(wseg * 0.85, 2 * (cx - xmin(neckTop)) - 0.4, 2 * (xmax(neckTop) - cx) - 0.4);
-    const barb = Math.max(0.7, Math.min(2, 0.18 * wh)), wn = wh - 2 * barb;
+    const barb = Math.min(Math.max(0.2, +S.set.finBarbW || 0.8), 0.25 * wh), wn = wh - 2 * barb; // how far a barb sticks out past the slit
     if (wn < 2.5) return null;
     const wt = Math.min(0.55 * wh, 2 * (cx - xmin(h)) - 0.2, 2 * (xmax(h) - cx) - 0.2);
     if (wt < 0.8) return null;
