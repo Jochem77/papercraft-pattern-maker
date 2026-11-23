@@ -49,7 +49,7 @@ Runs entirely in your browser: no installation, no account, and your models neve
    - **Select** (S): click a piece to select it, drag to move it, rotate with Q / E.
    - **Cut / join** (K): click near an edge to cut or join it.
    - **Objects** (O): click a separate part of the model and make it larger or smaller (in %).
-   - **Paint colors** (B): paint faces.
+   - **Paint colors** (B): paint faces. Click a colour's name to rename it; the name is printed on its pages and used in its PDF file name.
 4. Choose paper, size and tabs under **Settings** (Ctrl+,).
 5. Download the **PDF** (Ctrl+P) and print it at **100% / actual size**, or export the SVG files for your cutting plotter.
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rename materials**: click the name of a colour in the colours panel and type a new one (for example *green photo card*). The name is printed on every page of that material, is part of its PDF file name, and the plotter SVGs in the ZIP are now named and numbered like the PDF they belong to (material, paper, page). Saved in the project. Letters like é and ü now appear in the PDF instead of a question mark, and the page line shows the paper of that page.
 - **Make separate objects larger or smaller** (tool *Objects*, O): click a separate part of the model (for example a base, a tongue or a hat) in the 3D view or in the list, and set its size in %. It is scaled around its own centre and the model is unfolded again; the rest of the model keeps its size. Saved in the project. *All at 100 %* undoes it.
 - **Clean up thin faces** (*Settings → Model → Clean up faces thinner than*, default 2 mm): very thin or tiny triangles in the model are removed before unfolding, by joining their shortest edge or turning an edge, only where the shape hardly changes; colour borders and open edges stay. In the test model: 4 instead of 41 faces thinner than 2 mm, volume change 0.01 %. Projects keep their mesh (the tolerance is saved; older projects are not cleaned up).
 

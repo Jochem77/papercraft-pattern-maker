@@ -133,6 +133,9 @@ main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);min-height
 #mats .matbtns button{padding:3px 7px;font-size:12px}
 button.on{background:#dbeafe;border-color:#2563eb;color:#1e40af}
 #mats div{display:flex;align-items:center;gap:6px;font-size:12px}
+#mats input.mname{flex:1;min-width:0;font:inherit;font-size:12px;padding:1px 4px;border:1px solid transparent;border-radius:4px;background:transparent;color:inherit}
+#mats input.mname:hover{border-color:#cbd5e1;background:#fff}
+#mats input.mname:focus{border-color:#93b4f5;background:#fff;outline:none}
 #mats span.sw{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25)}
 footer{display:flex;gap:14px;align-items:center;padding:5px 10px;background:var(--panel);border-top:1px solid var(--line);font-size:12px;color:var(--muted);min-height:28px;flex-wrap:wrap}
 footer .warn{color:var(--warn);font-weight:600}
@@ -2298,6 +2301,7 @@ const NL = {
   'This model is one connected object. Make all of it larger or smaller in Settings → Model.': 'Dit model is één samenhangend object. Maak het geheel groter of kleiner bij Instellingen → Model.',
   'Object {n}': 'Object {n}', 'Size in %': 'Grootte in %', 'All at 100 %': 'Alles op 100 %',
   'Click an object in the 3D view or in this list. A new size unfolds the model again.': 'Klik op een object in de 3D-weergave of in deze lijst. Een nieuwe grootte vouwt het model opnieuw uit.',
+  'Name of this material: on the pages and in the file name of its PDF': 'Naam van dit materiaal: staat op de pagina’s en in de bestandsnaam van de PDF',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2950,7 +2954,7 @@ function showMaterials() {
   else {
     const count = new Array(mats.length).fill(0);
     S.faceMat.forEach(i => count[i]++);
-    h = mats.map((mt, i) => `<div class="row${S.paint && S.brush === i ? ' sel' : ''}" data-mat="${i}" title="${tr('Click to paint with this color')}"><input type="color" data-matcol="${i}" value="${hex(mt.color)}" title="${tr('Change color')}"><span>${esc(mt.name)}</span><span style="margin-left:auto">${count[i]}</span><select data-matpaper="${i}" title="${tr('Paper for this color (with Pages per color)')}"><option value="">${tr('Paper: standard')}</option>${Object.keys(PAPER).map(k => `<option value="${k}"${S.colorPaper && S.colorPaper[mt.color.join(',')] === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>`).join('');
+    h = mats.map((mt, i) => `<div class="row${S.paint && S.brush === i ? ' sel' : ''}" data-mat="${i}" title="${tr('Click to paint with this color')}"><input type="color" data-matcol="${i}" value="${hex(mt.color)}" title="${tr('Change color')}"><input class="mname" data-matname="${i}" value="${esc(mt.name)}" maxlength="40" spellcheck="false" title="${tr('Name of this material: on the pages and in the file name of its PDF')}"><span style="margin-left:auto">${count[i]}</span><select data-matpaper="${i}" title="${tr('Paper for this color (with Pages per color)')}"><option value="">${tr('Paper: standard')}</option>${Object.keys(PAPER).map(k => `<option value="${k}"${S.colorPaper && S.colorPaper[mt.color.join(',')] === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>`).join('');
   }
   h += `<div class="matbtns"><button data-act="paint" class="${S.paint ? 'on' : ''}">${tr(S.paint ? 'Done painting' : '🖌 Paint faces')}</button><button data-act="add">${tr('+ Color')}</button><button data-act="fix" title="${tr('Single triangles with a different color get the color of their neighbours')}">${tr('Fix tiny islands')}</button></div>`;
   $('mats').innerHTML = h;
@@ -3032,6 +3036,7 @@ function fixTinyColors(maxN = 1) {
 }
 function setupMaterialEvents() {
   const box = $('mats');
+  box.addEventListener('keydown', ev => { if (ev.target.dataset.matname !== undefined && (ev.key === 'Enter' || ev.key === 'Escape')) ev.target.blur(); });
   box.addEventListener('click', ev => {
     const act = ev.target.closest('[data-act]');
     if (act) {
@@ -3047,11 +3052,13 @@ function setupMaterialEvents() {
       }
       return;
     }
-    if (ev.target.matches('input[type=color], select')) return;
+    if (ev.target.matches('input, select')) return;
     const row = ev.target.closest('[data-mat]');
     if (row) { S.brush = +row.dataset.mat; setPaint(true); }
   });
   box.addEventListener('input', ev => {
+    const ni = ev.target.dataset.matname;
+    if (ni !== undefined) { S.model.materials[+ni].name = ev.target.value; return; }
     const i = ev.target.dataset.matcol; if (i === undefined) return;
     const c = unhex(ev.target.value), mt = S.model.materials[+i];
     const oldKey = mt.color.join(','), newKey = c.join(','); // the paper choice moves with the colour
@@ -3061,6 +3068,11 @@ function setupMaterialEvents() {
     update3DColors();
   });
   box.addEventListener('change', ev => {
+    if (ev.target.dataset.matname !== undefined) { // a name may not be empty: back to the old name
+      const mt = S.model.materials[+ev.target.dataset.matname], v = ev.target.value.trim();
+      mt.name = v || tr('Color {n}', { n: +ev.target.dataset.matname + 1 }); ev.target.value = mt.name;
+      render2D(); return;
+    }
     if (ev.target.dataset.matcol !== undefined) { buildDrawings(); render2D(); return; }
     const mi = ev.target.dataset.matpaper; if (mi === undefined || !S.mesh) return;
     const key = S.model.materials[+mi].color.join(','), v = ev.target.value;
@@ -4341,7 +4353,7 @@ function worldContent(opt) {
 }
 // ---------------------------------------------------------------- PDF (eigen generator, ware grootte)
 const PT = 72 / 25.4; // punten per mm
-const pdfTxt = t => String(t).replace(/[^\x20-\x7e]/g, '?').replace(/([()\\])/g, '\\$1');
+const pdfTxt = t => String(t).replace(/([()\\])/g, '\\$1').replace(/[^\x20-\x7e]/g, c => { const n = c.charCodeAt(0); return n >= 0xa0 && n <= 0xff ? '\\' + n.toString(8) : '?'; });
 const rgbOp = (c, op) => `${fx(c[0] / 255)} ${fx(c[1] / 255)} ${fx(c[2] / 255)} ${op}`;
 function pdfPageOps(pageIdx, k, total) {
   const [PW, PH] = pageDims(pageIdx), [x0, y0] = pageOrigin(pageIdx), st = S.set, colors = st.printColors, mg = effMargin();
@@ -4404,7 +4416,7 @@ function pdfPageOps(pageIdx, k, total) {
     const fs = Math.min(3.5, fm * 0.35), f2 = Math.min(3, fs * 0.86);
     const lx = marks.length ? st.silInset + st.silLen + 6 : mg; // rechts van de vrije zone linksonder
     const base1 = PH - fm + 1.5 + fs;
-    const lab = `${baseName()} - ${tr('page {k}/{n}', { k, n: total })}` + (S.pageLabels[pageIdx] ? ' - ' + colorName(S.pageLabels[pageIdx]) : '') + ` (${st.paper} ${tr(st.orient === 'landscape' ? 'landscape' : 'portrait')})`;
+    const lab = `${baseName()} - ${tr('page {k}/{n}', { k, n: total })}` + (S.pageLabels[pageIdx] ? ' - ' + colorName(S.pageLabels[pageIdx]) : '') + ` (${pagePaper(pageIdx)} ${tr(st.orient === 'landscape' ? 'landscape' : 'portrait')})`;
     T(lab, fs, lx, base1, 0.2);
     if (marks.length) {
       // instellingen van de markeringen (zelfde notatie als Silhouette Studio)
@@ -4606,7 +4618,12 @@ async function exportPlotter() {
   busy(true, tr('Creating files…'));
   try {
     const pages = pagesWithContent();
-    const files = pages.map((i, k) => ({ name: `${baseName()}-${tr('page')}-${String(k + 1).padStart(2, '0')}-${pagePaper(i)}.svg`, data: plotterSVG(i) }));
+    // named like the PDF they belong to (material, paper) and numbered like its pages
+    const safe = t => String(t).replace(/[\\/:*?"<>|]+/g, '_').trim() || 'color', seen = new Map();
+    const files = pages.map(i => {
+      const key = S.set.groupColors ? (S.pageLabels[i] || '') : '', n = (seen.get(key) || 0) + 1; seen.set(key, n);
+      return { name: `${baseName()}${key ? '-' + safe(colorName(key)) : ''}-${pagePaper(i)}-${tr('page')}-${String(n).padStart(2, '0')}.svg`, data: plotterSVG(i) };
+    });
     for (const f of await buildPDFs()) files.push({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) });
     files.push({ name: baseName() + '.papercraft.json', data: JSON.stringify(projectData()) });
     download(baseName() + '-' + tr('cutter') + '.zip', makeZip(files));
