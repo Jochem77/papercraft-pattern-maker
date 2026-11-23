@@ -144,4 +144,4 @@ setTool('select');
 const qp = new URLSearchParams(location.search).get('model');
 if (qp) fetch(qp).then(r => r.arrayBuffer()).then(b => loadModelBuffer(b, qp.split('/').pop(), null)).catch(e => toast(tr('Loading failed: ') + e.message));
 window.__S = S;
-window.__api = { openSimplify, pieceBody, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, buildPDFs, pagePaper, pageDims, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter, piecePolys, printable, silObstacles };
+window.__api = { openSimplify, pieceBody, tabNumPos, font, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, buildPDFs, pagePaper, pageDims, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter, piecePolys, printable, silObstacles };
