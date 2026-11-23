@@ -91,6 +91,10 @@ main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);min-height
 .srow:last-child{border-bottom:none}
 .srow .t{font-weight:550}
 .srow .h{color:var(--muted);font-size:12px;margin-top:2px;line-height:1.35}
+.srow .info{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;border:1px solid #9aa3b2;color:#6b7280;font:italic 600 10px/1 Georgia,serif;cursor:help;vertical-align:1px;user-select:none}
+.srow .info:hover,.srow .info:focus{background:#2563eb;border-color:#2563eb;color:#fff;outline:none}
+#setTip{position:fixed;z-index:1000;max-width:300px;padding:7px 10px;border-radius:7px;background:#1f2937;color:#f9fafb;font-size:12px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.2);pointer-events:none;display:none}
+#setTip.show{display:block}
 .srow.dis{opacity:.45}
 .ctl{display:flex;align-items:center;gap:6px}
 .ctl input[type=number]{width:84px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;text-align:right;font-variant-numeric:tabular-nums}
@@ -2472,12 +2476,12 @@ const TABS = [
 const swHtml = k => `<label class="sw"><input type="checkbox" data-k="${k}"><span></span></label>`;
 function rowHtml(it) {
   if (it.section) return `<h4>${tr(it.section)}</h4>`;
-  if (it.type === 'dims') return ['Length', 'Width', 'Height'].map((lab, i) => `<div class="srow"><div><div class="t"><span class="axis a${i}">${'XYZ'[i]}</span>${tr(lab)}</div>${i === 0 ? `<div class="h">${tr('Change one size; the others scale along (proportions stay the same).')}</div>` : ''}</div><div class="ctl"><input type="number" data-dim="${i}" min="1" max="20000" step="1"><span class="u">mm</span></div></div>`).join('');
+  if (it.type === 'dims') return ['Length', 'Width', 'Height'].map((lab, i) => `<div class="srow"><div><div class="t"><span class="axis a${i}">${'XYZ'[i]}</span>${tr(lab)}${i === 0 ? infoIcon(tr('Change one size; the others scale along (proportions stay the same).')) : ''}</div></div><div class="ctl"><input type="number" data-dim="${i}" min="1" max="20000" step="1"><span class="u">mm</span></div></div>`).join('');
   let ctl;
   if (it.type === 'number') ctl = `<input type="number" data-k="${it.k}" min="${it.min}" max="${it.max}" step="${it.step}"><span class="u">${it.unit || ''}</span>`;
   else if (it.type === 'select') ctl = `<select data-k="${it.k}">${Object.entries(it.opts).map(([v, o]) => `<option value="${v}">${it.raw ? o : tr(o)}</option>`).join('')}</select>`;
   else ctl = swHtml(it.k);
-  return `<div class="srow" data-row="${it.k}"${it.dep ? ` data-dep="${it.dep}"` : ''}><div><div class="t">${tr(it.label)}</div>${it.help ? `<div class="h">${tr(it.help)}</div>` : ''}</div><div class="ctl">${ctl}</div></div>`;
+  return `<div class="srow" data-row="${it.k}"${it.dep ? ` data-dep="${it.dep}"` : ''}><div><div class="t">${tr(it.label)}${it.help ? infoIcon(tr(it.help)) : ''}</div></div><div class="ctl">${ctl}</div></div>`;
 }
 let curTab = 'model';
 function renderSide() {
@@ -2491,7 +2495,7 @@ function buildSide() {
   try { curTab = localStorage.getItem('papercraft.tab') || 'model'; } catch (e) {}
   if (!TABS.some(tb => tb.id === curTab)) curTab = 'model';
   showTab(curTab);
-  setupMaterialEvents();
+  setupMaterialEvents(); setupInfoTips();
   syncSide();
   $('side').addEventListener('change', ev => {
     const el = ev.target;
@@ -3083,6 +3087,26 @@ function setupMaterialEvents() {
     // pieces may get another size limit: unfold again (unless edited by hand), else lay out again
     if (!S.manual) runAuto(); else { S.world = null; refresh(); fitView(); warnRecut(); }
   });
+}
+// (i) after a setting: its explanation shows on mouse-over (or keyboard focus)
+const infoIcon = text => `<span class="info" tabindex="0" role="img" aria-label="${esc(text)}" data-tip="${esc(text)}">i</span>`;
+function setupInfoTips() {
+  const tip = document.createElement('div'); tip.id = 'setTip'; tip.setAttribute('role', 'tooltip');
+  const dlg = $('settingsDlg'); dlg.appendChild(tip); // inside the dialog, so it shows above it (top layer)
+  const show = el => {
+    tip.textContent = el.dataset.tip; tip.classList.add('show');
+    const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2)), y = r.bottom + 6;
+    if (y + h > window.innerHeight - 8) y = r.top - h - 6;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  };
+  const hide = () => tip.classList.remove('show');
+  dlg.addEventListener('mouseover', ev => { const el = ev.target.closest('.info'); if (el) show(el); });
+  dlg.addEventListener('mouseout', ev => { if (ev.target.closest('.info')) hide(); });
+  dlg.addEventListener('focusin', ev => { const el = ev.target.closest('.info'); if (el) show(el); else hide(); });
+  dlg.addEventListener('focusout', hide);
+  dlg.addEventListener('scroll', hide, true);
+  dlg.addEventListener('close', hide);
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
