@@ -84,7 +84,8 @@ Vermeld de versie (Help → About) en je browser. Voeg als het kan het model of 
 ## Ontwikkeling
 
 - `src/core.js`: rekenkern (inlezen, uitvouwen, plakstrookjes, nesting). Werkt ook in Node.
-- `src/app.html`: interface.
+- `src/app.html`: de pagina (vensters, menu’s, panelen), `src/style.css`: opmaak.
+- `src/js/`: de interface, één bestand per onderwerp (instellingen, 2D, 3D, export, ...). De build voegt ze op volgorde van het nummer samen.
 - `node tools/build.js`: bouwt `index.html`, één los bestand.
 - `node tools/browsertest.js pad/naar/model`: headless test in Chrome of Edge.
 - `node tools/release.js`: nieuwe versie, changelog, tag en GitHub-release.

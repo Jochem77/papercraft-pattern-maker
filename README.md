@@ -81,8 +81,12 @@ Please mention the app version (Help → About) and your browser. If you can, at
 
 ```text
 src/core.js          geometry engine: parsers, unfolding, glue tabs, nesting (runs in browser and Node)
-src/app.html         user interface (three.js view, pattern view, PDF/SVG export)
-tools/build.js       builds index.html: a single self-contained file
+src/app.html         page markup (dialogs, menus, panels)
+src/style.css        styles
+src/js/NN-*.js       user interface, one file per subject, joined in name order:
+                     state, i18n, settings, files, model, materials, unfold, pieces,
+                     view2d, view3d, export (print/PDF/SVG), ui (buttons, menus, keys)
+tools/build.js       builds index.html: a single self-contained file (always edit src/, not index.html)
 tools/browsertest.js headless browser smoke test via the Chrome DevTools Protocol
 tools/release.js     version bump, changelog, tag and GitHub release
 tests/core.test.js   unit tests (run automatically on GitHub Actions)
