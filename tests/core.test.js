@@ -253,6 +253,8 @@ test('maximum faces per piece', () => {
   const joined = C.autoPipeline(m, o);
   const { cp } = checkUnfolding(m, joined, o);
   for (const p of cp.pieces) assert.ok(C.pieceFaceCount(m, joined, p.faces) <= 8, 'piece with too many faces');
+  // and no fiddly pieces of only 1 or 2 faces
+  assert.equal(cp.pieces.filter(p => C.pieceFaceCount(m, joined, p.faces) <= 2).length, 0, 'tiny pieces left');
   // a flat square of two triangles counts as one face
   const b = C.buildMesh(cube());
   const jb = C.autoPipeline(b, { ...opts(b, 100), maxFaces: 6 });

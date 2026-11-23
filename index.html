@@ -1081,6 +1081,67 @@ function remergePass(m, joined, o) {
   return merged;
 }
 
+// Pieces of only 1 or 2 faces are fiddly. When a tiny piece borders a piece that cannot take it
+// (for example because of the maximum number of faces), the tiny piece takes over a branch of
+// that neighbour instead: both end up with at least 3 faces where possible. Only moves that keep
+// both pieces valid (no overlap, room for tabs, on the paper, limits) are made.
+// relax: when given, only these edges may not be joined (used to let tiny pieces that are
+// enclosed by sharp folds join a neighbour across their least sharp fold; colour borders stay).
+function growTiny(m, joined, o, relax) {
+  const t0 = Date.now(), budget = o.growBudget || 1500, avoid = e => (relax ? relax[e] : o.avoid && o.avoid[e]);
+  const count = faces => pieceFaceCount(m, joined, faces);
+  let moves = 0;
+  for (let pass = 0; pass < 30 && Date.now() - t0 < budget; pass++) {
+    const cp = computePieces(m, joined), size = cp.pieces.map(p => count(p.faces)), touched = new Set();
+    let moved = 0;
+    for (const S of cp.pieces) {
+      if (size[S.id] > 2 || touched.has(S.id) || Date.now() - t0 > budget) continue;
+      const inS = new Set(S.faces);
+      let done = false;
+      // candidate edges, least sharp fold first
+      const cand = [];
+      for (const f of S.faces) for (const e of m.FE[f]) { const E = m.E[e]; if (E.m && !joined[e] && !avoid(e) && !inS.has(otherFace(E, f))) cand.push([f, e]); }
+      cand.sort((p, q) => m.E[p[1]].bend - m.E[q[1]].bend);
+      for (const [f, e] of cand) {
+        {
+          const E = m.E[e];
+          const g = otherFace(E, f), N = cp.pieces[cp.pieceOf[g]];
+          if (touched.has(N.id)) continue;
+          // the whole tiny piece joins the neighbour, when that fits
+          joined[e] = 1;
+          if (validateComponent(m, joined, f, o)) { touched.add(S.id); touched.add(N.id); moved++; done = true; break; }
+          joined[e] = 0;
+          if (size[N.id] < 4) continue;
+          // branches of N that contain g: the subtree of g, then of its ancestors
+          const up = x => { const pe = cp.parentEdge[x]; return pe < 0 ? -1 : otherFace(m.E[pe], x); };
+          const kids = new Map();
+          for (const x of N.faces) { const pp = up(x); if (pp >= 0) { if (!kids.has(pp)) kids.set(pp, []); kids.get(pp).push(x); } }
+          for (let x = g; x >= 0 && !done; x = up(x)) {
+            if (cp.parentEdge[x] < 0) break; // the root: the whole piece
+            const B = [x]; for (let i = 0; i < B.length; i++) for (const k of kids.get(B[i]) || []) B.push(k);
+            const inB = new Set(B), nb = count(B), rest = N.faces.filter(y => !inB.has(y));
+            if (size[N.id] - nb < 3) break;               // the neighbour must keep at least 3 faces
+            if (o.maxFaces > 0 && size[S.id] + nb > o.maxFaces) break;
+            // detach B from N (all joined edges between them), attach it to S via e
+            const cutE = [];
+            for (const y of B) for (const ee of m.FE[y]) { const EE = m.E[ee]; if (EE.m && joined[ee] && !inB.has(otherFace(EE, y)) && !inS.has(otherFace(EE, y))) cutE.push(ee); }
+            for (const ee of cutE) joined[ee] = 0;
+            joined[e] = 1;
+            if (validateComponent(m, joined, f, o) && validateComponent(m, joined, rest[0], o)) {
+              touched.add(S.id); touched.add(N.id); moved++; done = true;
+            } else { joined[e] = 0; for (const ee of cutE) joined[ee] = 1; }
+          }
+          if (done) break;
+        }
+        if (done) break;
+      }
+    }
+    moves += moved;
+    if (!moved) break;
+  }
+  return moves;
+}
+
 // Herstel: knip waar strookjes niet passen of stukken te groot zijn.
 function repair(m, joined, o) {
   let cuts = 0;
@@ -1206,6 +1267,18 @@ function autoPipeline(m, o, onProgress) {
       }
       remergePass(m, joined, o);
       repair(m, joined, o);
+    }
+    if (o.growTiny !== false) {
+      let g = growTiny(m, joined, o);
+      // tiny pieces enclosed by sharp folds may still join a neighbour across a fold of less than
+      // 85° (colour borders stay cut)
+      // (folds of a right angle or sharper, like the edges of a box, always stay cut)
+      if (sharp) {
+        const relax = new Uint8Array(m.E.length), lim = 85 * Math.PI / 180;
+        m.E.forEach((E, i) => { if ((colorAvoid && colorAvoid[i]) || (sharp[i] && E.bend >= lim)) relax[i] = 1; });
+        g += growTiny(m, joined, o, relax);
+      }
+      if (g) repair(m, joined, o);
     }
     const s = scoreJoined(m, joined);
     if (!best || s.score < best.s.score) best = { joined, s };
@@ -1547,7 +1620,7 @@ function simplifyMesh(pos, target, key) {
 const api = {
   nestLayout, simplifyMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
-  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount,
+  parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,
   selfOverlaps, treePath, splitEdge, otherFace, hslToRgb, validateComponent, remergePass, repair, scoreJoined
 };

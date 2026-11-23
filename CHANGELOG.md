@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Open project button** in the toolbar (next to *Open model*), and *Ctrl+Shift+O*.
 - **Maximum faces per piece** (*Settings → Automatic unfolding*, default 8): automatic unfolding makes no piece with more faces than this. A flat area of several triangles counts as one face. 0 = no limit.
+- **Fewer tiny pieces**: a piece of only 1 or 2 faces takes over a branch of a neighbouring piece, or joins it, when both stay valid. With *Cut at sharp folds*, a tiny piece enclosed by sharp folds may still join a neighbour across a fold of less than 85° (box edges and colour borders stay cut). In the test project: 9 instead of 61 pieces with 1 or 2 faces.
 
 ### Changed
 
