@@ -1,6 +1,6 @@
 {
   "name": "papercraft-pattern-maker",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "description": "Turn low-poly 3D models (STL, OBJ, GLB) into printable papercraft patterns with glue tabs, numbering and fold lines.",
   "license": "GPL-3.0-or-later",
   "author": "Jochem Steenbakkers",

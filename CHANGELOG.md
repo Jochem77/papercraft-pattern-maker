@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta.3] - 2026-11-23
+
 ### Added
 
 - **Skip nearly flat folds** (*Settings → Cutting plotter → Skip folds below*): folds that bend less than a chosen angle are not scored, perforated or printed (the screen still shows them); tab folds are always included.
@@ -88,6 +90,7 @@ First public beta. Please report problems via [GitHub Issues](https://github.com
 - OBJ files are assumed to be Y-up.
 - The Silhouette registration marks have been checked against Silhouette Studio's default settings only.
 
-[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.2...HEAD
+[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.3...HEAD
+[1.0.0-beta.3]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.2...v1.0.0-beta.3
 [1.0.0-beta.2]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/Jochem77/papercraft-pattern-maker/releases/tag/v1.0.0-beta.1
