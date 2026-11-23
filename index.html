@@ -545,6 +545,15 @@ function computePieces(m, joined) {
   return { pieces, pieceOf, local, parentEdge, bad };
 }
 
+// Paper size limit for a piece: o.faceWH (per face [W, H], for other paper per colour) or o.W, o.H.
+// For a piece with faces of several papers the smallest applies.
+function whFor(o, faces) {
+  if (!o.faceWH) return [o.W, o.H];
+  let W = Infinity, H = Infinity;
+  for (const f of faces) { const wh = o.faceWH[f]; if (wh) { W = Math.min(W, wh[0]); H = Math.min(H, wh[1]); } }
+  return W === Infinity ? [o.W, o.H] : [W, H];
+}
+
 // ---------------------------------------------------------------- 2D-geometrie
 function bbox(P) {
   let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
@@ -822,7 +831,7 @@ function layoutTabs(m, cp, lmm, joined, opts) {
         const r = tryTab(e, f2, sc);
         if (!r.ok) continue;
         const H = hull(hullOf[pid].concat(r.t.poly));
-        if (opts.W && !fitsRect(H, opts.W, opts.H)) continue;
+        if (opts.W) { const [Wp, Hp] = whFor(opts, pieces[pid].faces); if (!fitsRect(H, Wp, Hp)) continue; }
         tabs2[e] = { poly: r.t.poly, h: r.t.h, f: f2 }; placed[pid].push({ poly: r.t.poly, bb: r.bb, e, f: f2 }); hullOf[pid] = H;
         break;
       }
@@ -989,7 +998,7 @@ function validateComponent(m, joined, seed, o, info) {
     }
     if (!done && sides.length === 2) { if (!info) return false; ok = false; for (const h of hits) conf.add(h); }
   }
-  if (!fitsRect(hull(pts), o.W, o.H)) { if (info) info.tooBig = true; return false; }
+  { const [Wp, Hp] = whFor(o, faces); if (!fitsRect(hull(pts), Wp, Hp)) { if (info) info.tooBig = true; return false; } }
   return ok;
 }
 
@@ -1167,7 +1176,8 @@ function repair(m, joined, o) {
     }
     for (const p of cp.pieces) {
       if (fix.has(p.id) || p.faces.length < 2) continue;
-      if (!fitsRect(hull(pieceOutlinePts(p, lmm, m, tl)), o.W, o.H)) fix.set(p.id, splitEdge(cp, m, p));
+      const [Wp, Hp] = whFor(o, p.faces);
+      if (!fitsRect(hull(pieceOutlinePts(p, lmm, m, tl)), Wp, Hp)) fix.set(p.id, splitEdge(cp, m, p));
     }
     if (!fix.size) break;
     for (const e of fix.values()) if (e >= 0) { joined[e] = 0; cuts++; }
@@ -1932,14 +1942,25 @@ try { Object.assign(S.set, JSON.parse(localStorage.getItem('papercraft.settings'
 if (S.set.silInset === 15.9) S.set.silInset = 15.88; // oude standaard → waarde uit Silhouette Studio
 const saveSettings = () => { try { localStorage.setItem('papercraft.settings', JSON.stringify(S.set)); } catch (e) {} };
 
-const pageDims = () => { let [w, h] = PAPER[S.set.paper] || PAPER.A4; if (S.set.orient === 'landscape') [w, h] = [h, w]; return [w, h]; };
+// Paper per colour (S.colorPaper: 'r,g,b' -> 'A4' | 'A3'), used with "Pages per color".
+// Functions that take "i" accept a page number, a paper name, or nothing (the standard paper).
+const dimsOf = paper => { let [w, h] = PAPER[paper] || PAPER.A4; if (S.set.orient === 'landscape') [w, h] = [h, w]; return [w, h]; };
+const keyPaper = key => (S.set.groupColors && S.colorPaper && S.colorPaper[key]) || S.set.paper;
+const pagePaper = i => typeof i === 'string' ? i : (i != null && S.pageLabels && S.pageLabels[i] != null ? keyPaper(S.pageLabels[i]) : S.set.paper);
+const pageDims = i => dimsOf(pagePaper(i));
+// size of a cell in the page grid on screen: the largest paper in use
+const cellDims = () => {
+  let [w, h] = dimsOf(S.set.paper);
+  if (S.set.groupColors && S.colorPaper) for (const pp of Object.values(S.colorPaper)) { const [a, b] = dimsOf(pp); w = Math.max(w, a); h = Math.max(h, b); }
+  return [w, h];
+};
 // Effectieve marge: bij Silhouette-markeringen moeten de stukken binnen de markeringen blijven
 const effMargin = () => S.set.silMarks ? Math.max(S.set.margin, S.set.silInset + S.set.silThick + 1.5) : S.set.margin;
-const printable = () => { const [w, h] = pageDims(), m = effMargin(); return [w - 2 * m, h - 2 * m]; };
+const printable = i => { const [w, h] = pageDims(i), m = effMargin(); return [w - 2 * m, h - 2 * m]; };
 // Silhouette Type 1: zwart vierkant linksboven, L-hoeken rechtsboven en linksonder (rechthoeken in pagina-mm)
-function silMarkRects() {
+function silMarkRects(pg) {
   if (!S.set.silMarks) return [];
-  const [W, H] = pageDims(), i = S.set.silInset, L = S.set.silLen, t = S.set.silThick, q = S.set.silSquare;
+  const [W, H] = pageDims(pg), i = S.set.silInset, L = S.set.silLen, t = S.set.silThick, q = S.set.silSquare;
   return [
     [i, i, q, q],
     [W - i - L, i, L, t], [W - i - t, i, t, L],
@@ -1948,9 +1969,9 @@ function silMarkRects() {
 }
 // zone rond het vierkant die vrij moet blijven (in coördinaten van het printbare gebied)
 // Silhouette Studio houdt rond het vierkant en de L-hoeken een vak van (inzet + lengte) vrij; +1 mm marge
-function silObstacles() {
+function silObstacles(i) {
   if (!S.set.silMarks) return [];
-  const m = effMargin(), [W, H] = pageDims(), st = S.set;
+  const m = effMargin(), [W, H] = pageDims(i), st = S.set;
   const z = Math.max(st.silInset + st.silLen, st.silInset + st.silSquare + 2) + 1, e = z - m;
   if (e <= 0) return [];
   const pw = W - 2 * m, ph = H - 2 * m;
@@ -1958,9 +1979,9 @@ function silObstacles() {
 }
 // Pagina-raster: pagina i staat in kolom i % cols, rij floor(i / cols)
 const pageCols = () => Math.max(1, Math.round(S.set.pageCols || 3));
-function pageOrigin(i, cols = pageCols()) { const [PW, PH] = pageDims(); return [(i % cols) * (PW + GAP), Math.floor(i / cols) * (PH + GAP)]; }
+function pageOrigin(i, cols = pageCols()) { const [PW, PH] = cellDims(); return [(i % cols) * (PW + GAP), Math.floor(i / cols) * (PH + GAP)]; }
 function pageAt(x, y) {
-  const [PW, PH] = pageDims(), cols = pageCols();
+  const [PW, PH] = cellDims(), cols = pageCols();
   const c = Math.floor(x / (PW + GAP)), r = Math.floor(y / (PH + GAP));
   return c < 0 || c >= cols || r < 0 ? -1 : r * cols + c;
 }
@@ -2041,6 +2062,9 @@ const NL = {
   'ZIP with {n} SVG {pages}, the PDF and the project file': 'ZIP met {n} SVG-{pages}, de PDF en het projectbestand',
   'Arrangement': 'Indeling', 'Normal': 'Normaal', 'Fewest pages': 'Zo weinig mogelijk papier', 'Neighbours together': 'Buren bij elkaar',
   'Fewest pages: tries several arrangements and keeps the one with the fewest pages (takes a few seconds). Neighbours together: pieces that are joined in the model lie next to each other, which makes building easier but can take more paper.': 'Zo weinig mogelijk papier: probeert meerdere indelingen en houdt die met de minste pagina’s (duurt een paar seconden). Buren bij elkaar: stukken die in het model aan elkaar vastzitten liggen naast elkaar; dat bouwt makkelijker, maar kan meer papier kosten.',
+  'Paper for this color (with Pages per color)': 'Papier voor deze kleur (met Pagina’s per kleur)', 'Paper: standard': 'Papier: standaard',
+  'Pages per color switched on: every color gets its own pages.': 'Pagina’s per kleur aangezet: elke kleur krijgt eigen pagina’s.',
+  '{k} PDFs (one per color) in a ZIP: {n} {pages}, true size (1:1).': '{k} PDF’s (één per kleur) in een ZIP: {n} {pages}, ware grootte (1:1).',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2480,7 +2504,7 @@ async function loadProject(p) {
   await loadModelBuffer(b64ToBuf(p.file), p.name, p);
 }
 function projectData() {
-  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
+  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, colorPaper: S.colorPaper || {}, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
     paint: S.faceMat && S.faceColor ? { materials: S.model.materials, faceMat: S.faceMat, faceColor: S.faceColor } : null };
   return p;
 }
@@ -2547,6 +2571,7 @@ async function loadModel(data, name, proj) {
   S.maxDim = Math.max(...m.size); S.scale = S.set.size / S.maxDim;
   syncSide();
   S.faceMat = data.faceMat ? m.src.map(t => data.faceMat[t]) : null;
+  S.colorPaper = proj && proj.colorPaper ? { ...proj.colorPaper } : {};
   S.faceColor = await faceColors(data, m);
   if (proj && proj.paint && proj.paint.faceMat && proj.paint.faceMat.length === m.F.length) {
     data.materials = proj.paint.materials; S.faceMat = proj.paint.faceMat.slice(); S.faceColor = proj.paint.faceColor.map(c => c.slice());
@@ -2586,7 +2611,7 @@ function showMaterials() {
   else {
     const count = new Array(mats.length).fill(0);
     S.faceMat.forEach(i => count[i]++);
-    h = mats.map((mt, i) => `<div class="row${S.paint && S.brush === i ? ' sel' : ''}" data-mat="${i}" title="${tr('Click to paint with this color')}"><input type="color" data-matcol="${i}" value="${hex(mt.color)}" title="${tr('Change color')}"><span>${esc(mt.name)}</span><span style="margin-left:auto">${count[i]}</span></div>`).join('');
+    h = mats.map((mt, i) => `<div class="row${S.paint && S.brush === i ? ' sel' : ''}" data-mat="${i}" title="${tr('Click to paint with this color')}"><input type="color" data-matcol="${i}" value="${hex(mt.color)}" title="${tr('Change color')}"><span>${esc(mt.name)}</span><span style="margin-left:auto">${count[i]}</span><select data-matpaper="${i}" title="${tr('Paper for this color (with Pages per color)')}"><option value="">${tr('Paper: standard')}</option>${Object.keys(PAPER).map(k => `<option value="${k}"${S.colorPaper && S.colorPaper[mt.color.join(',')] === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>`).join('');
   }
   h += `<div class="matbtns"><button data-act="paint" class="${S.paint ? 'on' : ''}">${tr(S.paint ? 'Done painting' : '🖌 Paint faces')}</button><button data-act="add">${tr('+ Color')}</button><button data-act="fix" title="${tr('Single triangles with a different color get the color of their neighbours')}">${tr('Fix tiny islands')}</button></div>`;
   $('mats').innerHTML = h;
@@ -2680,18 +2705,29 @@ function setupMaterialEvents() {
       }
       return;
     }
-    if (ev.target.matches('input[type=color]')) return;
+    if (ev.target.matches('input[type=color], select')) return;
     const row = ev.target.closest('[data-mat]');
     if (row) { S.brush = +row.dataset.mat; setPaint(true); }
   });
   box.addEventListener('input', ev => {
     const i = ev.target.dataset.matcol; if (i === undefined) return;
     const c = unhex(ev.target.value), mt = S.model.materials[+i];
+    const oldKey = mt.color.join(','), newKey = c.join(','); // the paper choice moves with the colour
+    if (S.colorPaper && S.colorPaper[oldKey] && oldKey !== newKey) { S.colorPaper[newKey] = S.colorPaper[oldKey]; delete S.colorPaper[oldKey]; }
     mt.color = c;
     S.faceMat.forEach((k, f) => { if (k === +i) S.faceColor[f] = c.slice(); });
     update3DColors();
   });
-  box.addEventListener('change', ev => { if (ev.target.dataset.matcol !== undefined) { buildDrawings(); render2D(); } });
+  box.addEventListener('change', ev => {
+    if (ev.target.dataset.matcol !== undefined) { buildDrawings(); render2D(); return; }
+    const mi = ev.target.dataset.matpaper; if (mi === undefined || !S.mesh) return;
+    const key = S.model.materials[+mi].color.join(','), v = ev.target.value;
+    if (!S.colorPaper) S.colorPaper = {};
+    if (v) S.colorPaper[key] = v; else delete S.colorPaper[key];
+    if (v && !S.set.groupColors) { S.set.groupColors = true; saveSettings(); syncSide(); toast(tr('Pages per color switched on: every color gets its own pages.'), 4000); }
+    // pieces may get another size limit: unfold again (unless edited by hand), else lay out again
+    if (!S.manual) runAuto(); else { S.world = null; refresh(); fitView(); warnRecut(); }
+  });
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -2711,15 +2747,28 @@ self.onmessage = e => {
   workerURL = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
   return workerURL;
 }
-function autoOptions() {
-  let [W, H] = printable(); const st = S.set;
+// Largest piece (with tabs) that fits on a sheet of this paper.
+function pieceLimit(paper) {
+  let [W, H] = printable(paper); const st = S.set;
   // met Silhouette-markeringen: stuk moet passen in de rechthoek die vrij is van alle hoekzones (+1 mm rasterspeling)
-  const ob = silObstacles();
+  const ob = silObstacles(paper);
   if (ob.length) { W -= ob[0].w + 1; H -= ob[0].h + 1; }
   // a little room for the space between pieces and the raster used to lay out the pages
   W -= st.pieceGap + 3; H -= st.pieceGap + 3;
   if (st.maxPieceOn && st.maxPiece > 0) { W = Math.min(W, st.maxPiece); H = Math.min(H, st.maxPiece); }
-  return { scale: S.scale, W, H, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
+  return [W, H];
+}
+function autoOptions() {
+  const st = S.set;
+  let [W, H] = pieceLimit(st.paper), faceWH = null;
+  // other paper for some colours: a limit per face; W, H become the largest (the check per piece is exact)
+  const papers = st.groupColors && S.colorPaper && S.faceColor ? [...new Set(Object.values(S.colorPaper))].filter(pp => pp !== st.paper) : [];
+  if (papers.length) {
+    const lim = { [st.paper]: [W, H] }; for (const pp of papers) lim[pp] = pieceLimit(pp);
+    faceWH = S.faceColor.map(c => lim[keyPaper(c.join(','))] || lim[st.paper]);
+    for (const pp of papers) { W = Math.max(W, lim[pp][0]); H = Math.max(H, lim[pp][1]); }
+  }
+  return { scale: S.scale, W, H, faceWH, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
     sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
 }
 function warnRecut() {
@@ -2807,7 +2856,7 @@ function refresh() {
   S.lmm = Core.toMM(cp.local, S.scale);
   const st = S.set;
   const fitWH = st.tabStyle === 'fin' ? autoOptions() : null; // flaps only where the piece still fits the paper
-  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'fin', W: fitWH && fitWH.W, H: fitWH && fitWH.H });
+  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'fin', W: fitWH && fitWH.W, H: fitWH && fitWH.H, faceWH: fitWH && fitWH.faceWH });
   S.so = Core.selfOverlaps(cp, S.lmm);
   numberEdges();
   // plaats van elk stuk afleiden uit de vorige wereld-coördinaten (stukken blijven waar ze waren)
@@ -3167,9 +3216,9 @@ function neighbourOrder(list, w) {
   return order;
 }
 // Arrange one group of pieces on pages, according to the chosen arrangement.
-function nestGroup(items, list, W, H, budget) {
+function nestGroup(items, list, W, H, budget, paper) {
   const mode = S.set.layoutMode || 'normal';
-  const opt = { gap: S.set.pieceGap, obstacles: silObstacles(), cell: W * H > 80000 ? 1.5 : 1, angleStep: items.length > 80 ? 30 : 15 };
+  const opt = { gap: S.set.pieceGap, obstacles: silObstacles(paper), cell: W * H > 80000 ? 1.5 : 1, angleStep: items.length > 80 ? 30 : 15 };
   if (mode === 'together') {
     const w = pieceNeighbours();
     return Core.nestLayout(items, W, H, { ...opt, order: neighbourOrder(list, w), near: new Map(list.map(p => [p.id, [...w[p.id].keys()]])) });
@@ -3212,14 +3261,15 @@ function nestGroup(items, list, W, H, budget) {
   return best;
 }
 function autoLayout() {
-  const [W, H] = printable(), mg = effMargin();
+  const mg = effMargin();
   const groups = new Map();
   for (const p of S.cp.pieces) { const k = S.set.groupColors ? dominantColor(p) : ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
   let base = 0, left = groups.size; S.pageLabels = [];
   const deadline = Date.now() + 10000; // "fewest pages": 10 seconds in total, shared by the colour groups
   for (const [key, list] of groups) {
     const items = list.map(p => ({ id: p.id, polys: piecePolys(p) }));
-    const r = nestGroup(items, list, W, H, Math.max(0, (deadline - Date.now()) / left--));
+    const paper = key ? keyPaper(key) : S.set.paper, [W, H] = printable(paper);
+    const r = nestGroup(items, list, W, H, Math.max(0, (deadline - Date.now()) / left--), paper);
     for (const pl of r.placements) {
       const p = S.cp.pieces[pl.id], o = pageOrigin(base + pl.page);
       p.rot = pl.deg; p.x = o[0] + mg + pl.x; p.y = o[1] + mg + pl.y;
@@ -3245,7 +3295,7 @@ function updateWorld() {
 
 // Pagina per stuk, binnen printbaar gebied?, overlap tussen stukken
 function pageInfo() {
-  const [PW, PH] = pageDims(), mg = effMargin(), obst = silObstacles();
+  const mg = effMargin();
   let maxPage = S.layoutPages - 1;
   const polys = [];
   for (const p of S.cp.pieces) {
@@ -3254,6 +3304,7 @@ function pageInfo() {
     p.wbb = bb;
     const pg = pageAt((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2);
     p.page = pg;
+    const [PW, PH] = pageDims(pg >= 0 ? pg : undefined), obst = silObstacles(pg >= 0 ? pg : undefined);
     const [x0, y0] = pg >= 0 ? pageOrigin(pg) : [0, 0];
     p.off = pg < 0 || bb[0] < x0 + mg - 0.01 || bb[2] > x0 + PW - mg + 0.01 || bb[1] < y0 + mg - 0.01 || bb[3] > y0 + PH - mg + 0.01;
     for (const ob of obst) {
@@ -3368,15 +3419,15 @@ function pieceNumGeom(p) {
   return { n, fs, r: Math.max(fs * 0.66, w / 2 + fs * 0.28) };
 }
 function pageRects() {
-  const [PW, PH] = pageDims(), mg = effMargin(), marks = silMarkRects();
+  const mg = effMargin();
   let s = '';
   for (let i = 0; i < S.pageCount; i++) {
-    const [x, y] = pageOrigin(i);
+    const [x, y] = pageOrigin(i), [PW, PH] = pageDims(i), marks = silMarkRects(i);
     s += `<rect class="page" x="${x}" y="${y}" width="${PW}" height="${PH}"/>`;
     s += `<rect class="print-area" x="${x + mg}" y="${y + mg}" width="${PW - 2 * mg}" height="${PH - 2 * mg}"/>`;
-    const lab = S.pageLabels[i] ? ' · ' + colorName(S.pageLabels[i]) : '';
+    const lab = (S.pageLabels[i] ? ' · ' + colorName(S.pageLabels[i]) : '') + (pagePaper(i) !== S.set.paper || (S.set.groupColors && S.colorPaper && Object.keys(S.colorPaper).length) ? ' · ' + pagePaper(i) : '');
     s += `<text class="pagelabel" x="${x}" y="${y - 3}">${tr('Page')} ${i + 1}${lab}</text>`;
-    for (const ob of silObstacles()) s += `<rect x="${fx(x + mg + ob.x)}" y="${fx(y + mg + ob.y)}" width="${fx(ob.w)}" height="${fx(ob.h)}" fill="#94a3b8" fill-opacity="0.22" stroke="none"><title>${tr('Keep-clear zone (Silhouette)')}</title></rect>`;
+    for (const ob of silObstacles(i)) s += `<rect x="${fx(x + mg + ob.x)}" y="${fx(y + mg + ob.y)}" width="${fx(ob.w)}" height="${fx(ob.h)}" fill="#94a3b8" fill-opacity="0.22" stroke="none"><title>${tr('Keep-clear zone (Silhouette)')}</title></rect>`;
     for (const r of marks) s += `<rect x="${fx(x + r[0])}" y="${fx(y + r[1])}" width="${fx(r[2])}" height="${fx(r[3])}" fill="#000"/>`;
   }
   return s;
@@ -3407,7 +3458,7 @@ function render2D() {
 const VB = { x: -10, y: -20, w: 300, h: 300 };
 function applyVB() { svg.setAttribute('viewBox', `${VB.x} ${VB.y} ${VB.w} ${VB.h}`); }
 function fitView() {
-  const [PW, PH] = pageDims();
+  const [PW, PH] = cellDims();
   const n = Math.max(S.pageCount, 1);
   const cw = svg.clientWidth || 600, ch = svg.clientHeight || 400;
   const cols = Math.min(n, pageCols()), rows = Math.ceil(n / pageCols());
@@ -3947,7 +3998,7 @@ const PT = 72 / 25.4; // punten per mm
 const pdfTxt = t => String(t).replace(/[^\x20-\x7e]/g, '?').replace(/([()\\])/g, '\\$1');
 const rgbOp = (c, op) => `${fx(c[0] / 255)} ${fx(c[1] / 255)} ${fx(c[2] / 255)} ${op}`;
 function pdfPageOps(pageIdx, k, total) {
-  const [PW, PH] = pageDims(), [x0, y0] = pageOrigin(pageIdx), st = S.set, colors = st.printColors, mg = effMargin();
+  const [PW, PH] = pageDims(pageIdx), [x0, y0] = pageOrigin(pageIdx), st = S.set, colors = st.printColors, mg = effMargin();
   const o = [`${fx(PT)} 0 0 ${fx(-PT)} 0 ${fx(PH * PT)} cm`, '1 j'];
   const path = (pts, close) => pts.map((q, i) => `${fx(q[0] - x0)} ${fx(q[1] - y0)} ${i ? 'l' : 'm'}`).join(' ') + (close ? ' h' : '');
   const STY = {
@@ -3998,7 +4049,7 @@ function pdfPageOps(pageIdx, k, total) {
     }
   }
   // Silhouette-registratiemarkeringen (zwart, exact op maat)
-  const marks = silMarkRects();
+  const marks = silMarkRects(pageIdx);
   if (marks.length) o.push('0 0 0 rg ' + marks.map(r => `${fx(r[0])} ${fx(r[1])} ${fx(r[2])} ${fx(r[3])} re`).join(' ') + ' f');
   // voettekst in de marge: paginanummer + controlelijn van 50 mm (bij markeringen: onder de markeringen, rechts van de L-hoek)
   const fm = marks.length ? st.silInset : mg;
@@ -4026,8 +4077,8 @@ async function deflate(u) {
   if (typeof CompressionStream !== 'function') return null;
   try { return new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer()); } catch (e) { return null; }
 }
-async function buildPDF() {
-  const pages = pagesWithContent(), [PW, PH] = pageDims(), enc = new TextEncoder();
+async function buildPDF(pageList) {
+  const pages = pageList || pagesWithContent(), enc = new TextEncoder();
   const chunks = [], offs = []; let len = 0;
   const add = x => { const u = typeof x === 'string' ? enc.encode(x) : x; chunks.push(u); len += u.length; };
   const obj = (id, parts) => { offs[id] = len; add(`${id} 0 obj\n`); [].concat(parts).forEach(add); add('\nendobj\n'); };
@@ -4039,6 +4090,7 @@ async function buildPDF() {
   const f2id = 5 + 2 * n; // vet lettertype voor stuknummers (wordt na de pagina's geschreven)
   obj(4, `<< /Title (${pdfTxt(baseName())}) /Producer (Papercraft Pattern Maker ${APP_VERSION}) /Creator (${REPO_URL}) >>`);
   for (let i = 0; i < n; i++) {
+    const [PW, PH] = pageDims(pages[i]);
     obj(5 + 2 * i, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fx(PW * PT)} ${fx(PH * PT)}] /Resources << /Font << /F1 3 0 R /F2 ${f2id} 0 R >> >> /Contents ${6 + 2 * i} 0 R >>`);
     const raw = enc.encode(pdfPageOps(pages[i], i + 1, n));
     const z = await deflate(raw);
@@ -4052,14 +4104,30 @@ async function buildPDF() {
   add(x + `trailer\n<< /Size ${N + 1} /Root 1 0 R /Info 4 0 R >>\nstartxref\n${xo}\n%%EOF\n`);
   return new Blob(chunks, { type: 'application/pdf' });
 }
+// One PDF per material when "Pages per color" is on (each is printed on its own card), else one PDF.
+async function buildPDFs() {
+  const pages = pagesWithContent(), groups = new Map();
+  for (const i of pages) { const k = S.set.groupColors ? (S.pageLabels[i] || '') : ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
+  const safe = t => String(t).replace(/[\\/:*?"<>|]+/g, '_').trim() || 'color';
+  const out = [];
+  for (const [k, list] of groups) {
+    const paper = pagePaper(list[0]);
+    const name = k ? `${baseName()}-${safe(colorName(k))}-${paper}.pdf` : `${baseName()}-${paper}.pdf`;
+    out.push({ name, blob: await buildPDF(list), pages: list.length });
+  }
+  return out;
+}
 async function exportPDF() {
   if (!S.cp) return;
   const warn = S.cp.pieces.some(p => p.off || p.big || p.page < 0);
   busy(true, tr('Creating PDF…'));
   try {
-    const blob = await buildPDF();
-    download(`${baseName()}-${S.set.paper}.pdf`, blob);
-    { const np = pagesWithContent().length; toast(tr('PDF downloaded: {n} {pages} {p}, true size (1:1).', { n: np, pages: pl(np, 'page', 'pages'), p: S.set.paper }) + (warn ? tr(' Note: some pieces are (partly) outside the printable area.') : ''), 5000); }
+    const pdfs = await buildPDFs();
+    if (pdfs.length === 1) download(pdfs[0].name, pdfs[0].blob);
+    else download(baseName() + '-PDF.zip', makeZip(await Promise.all(pdfs.map(async f => ({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) })))));
+    const np = pdfs.reduce((n, f) => n + f.pages, 0);
+    toast((pdfs.length === 1 ? tr('PDF downloaded: {n} {pages} {p}, true size (1:1).', { n: np, pages: pl(np, 'page', 'pages'), p: pagePaper(pagesWithContent()[0]) })
+      : tr('{k} PDFs (one per color) in a ZIP: {n} {pages}, true size (1:1).', { k: pdfs.length, n: np, pages: pl(np, 'page', 'pages') })) + (warn ? tr(' Note: some pieces are (partly) outside the printable area.') : ''), 5000);
   } catch (e) { console.error(e); toast(tr('Creating PDF failed: ') + e.message, 5000); }
   busy(false);
 }
@@ -4072,6 +4140,7 @@ function fillPrintArea() {
   const content = worldContent({ cut: true, folds: S.set.foldPrint, labels: true });
   let h = '';
   for (const i of pagesWithContent()) {
+    const [PW, PH] = pageDims(i);
     h += `<svg xmlns="http://www.w3.org/2000/svg" width="${PW}mm" height="${PH}mm" viewBox="${pageOrigin(i).join(' ')} ${PW} ${PH}">${content}</svg>`;
   }
   $('printArea').innerHTML = h;
@@ -4123,7 +4192,7 @@ function foldSegs(p) {
   return out;
 }
 function plotterSVG(pageIdx) {
-  const [PW, PH] = pageDims(), [x0, y0] = pageOrigin(pageIdx);
+  const [PW, PH] = pageDims(pageIdx), [x0, y0] = pageOrigin(pageIdx);
   const pieces = S.cp.pieces.filter(p => p.page === pageIdx);
   const sh = q => fx(q[0] - x0) + ',' + fx(q[1] - y0);
   let printL = '', cutL = '', foldL = '', perfL = '';
@@ -4157,8 +4226,8 @@ function plotterSVG(pageIdx) {
 ${mode === 'score' || mode === 'mixed' ? `<g id="score" inkscape:groupmode="layer" inkscape:label="${tr('score')}">${foldL}</g>
 ` : ''}${mode === 'perf' || mode === 'mixed' ? `<g id="perforate" inkscape:groupmode="layer" inkscape:label="${tr('perforate')}">${perfL}</g>
 ` : ''}<g id="print" inkscape:groupmode="layer" inkscape:label="print" transform="translate(${-x0} ${-y0})">${printL}</g>
-<g id="cut" inkscape:groupmode="layer" inkscape:label="${tr('cut layer')}">${cutL}</g>${silMarkRects().length ? `
-<g id="registration" inkscape:groupmode="layer" inkscape:label="${tr('registration marks (do not cut)')}">${silMarkRects().map(r => `<rect x="${fx(r[0])}" y="${fx(r[1])}" width="${fx(r[2])}" height="${fx(r[3])}" fill="#000"/>`).join('')}</g>` : ''}
+<g id="cut" inkscape:groupmode="layer" inkscape:label="${tr('cut layer')}">${cutL}</g>${silMarkRects(pageIdx).length ? `
+<g id="registration" inkscape:groupmode="layer" inkscape:label="${tr('registration marks (do not cut)')}">${silMarkRects(pageIdx).map(r => `<rect x="${fx(r[0])}" y="${fx(r[1])}" width="${fx(r[2])}" height="${fx(r[3])}" fill="#000"/>`).join('')}</g>` : ''}
 </svg>`;
 }
 // Minimale ZIP-schrijver (zonder compressie)
@@ -4191,9 +4260,8 @@ async function exportPlotter() {
   busy(true, tr('Creating files…'));
   try {
     const pages = pagesWithContent();
-    const files = pages.map((i, k) => ({ name: `${baseName()}-${tr('page')}-${String(k + 1).padStart(2, '0')}.svg`, data: plotterSVG(i) }));
-    const pdf = await buildPDF();
-    files.push({ name: `${baseName()}-${S.set.paper}.pdf`, data: new Uint8Array(await pdf.arrayBuffer()) });
+    const files = pages.map((i, k) => ({ name: `${baseName()}-${tr('page')}-${String(k + 1).padStart(2, '0')}-${pagePaper(i)}.svg`, data: plotterSVG(i) }));
+    for (const f of await buildPDFs()) files.push({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) });
     files.push({ name: baseName() + '.papercraft.json', data: JSON.stringify(projectData()) });
     download(baseName() + '-' + tr('cutter') + '.zip', makeZip(files));
     toast(tr('ZIP with {n} SVG {pages}, the PDF and the project file', { n: pages.length, pages: pl(pages.length, 'page', 'pages') }), 4000);
@@ -4319,7 +4387,7 @@ setTool('select');
 const qp = new URLSearchParams(location.search).get('model');
 if (qp) fetch(qp).then(r => r.arrayBuffer()).then(b => loadModelBuffer(b, qp.split('/').pop(), null)).catch(e => toast(tr('Loading failed: ') + e.message));
 window.__S = S;
-window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter, piecePolys, printable, silObstacles };
+window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, buildPDFs, pagePaper, pageDims, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter, piecePolys, printable, silObstacles };
 </script>
 </body>
 </html>

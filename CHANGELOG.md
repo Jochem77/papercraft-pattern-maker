@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Paper per color** (colors panel, next to every color: *Paper: standard / A4 / A3*): with *Pages per color* (switched on automatically), each color gets pages in its own paper size, and automatic unfolding makes its pieces fit that paper. **A separate PDF per material** (one ZIP when there are several), also in the cutting plotter ZIP; the SVG of each page has its own paper size and registration marks. The choice is saved in the project.
+
 - **Arrangement on the pages** (*Settings → Paper & layout → Arrangement*): *Fewest pages* tries several arrangements and finer rotations and keeps the one with the fewest pages; *Neighbours together* places pieces that are joined in the model next to each other (walking through the model from piece to neighbour), which makes building easier.
 - With *Tab and flap*, a flap is only added where the piece still fits on the paper (a piece could stick out past the printable area).
 

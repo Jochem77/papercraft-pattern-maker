@@ -335,6 +335,15 @@ function computePieces(m, joined) {
   return { pieces, pieceOf, local, parentEdge, bad };
 }
 
+// Paper size limit for a piece: o.faceWH (per face [W, H], for other paper per colour) or o.W, o.H.
+// For a piece with faces of several papers the smallest applies.
+function whFor(o, faces) {
+  if (!o.faceWH) return [o.W, o.H];
+  let W = Infinity, H = Infinity;
+  for (const f of faces) { const wh = o.faceWH[f]; if (wh) { W = Math.min(W, wh[0]); H = Math.min(H, wh[1]); } }
+  return W === Infinity ? [o.W, o.H] : [W, H];
+}
+
 // ---------------------------------------------------------------- 2D-geometrie
 function bbox(P) {
   let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
@@ -612,7 +621,7 @@ function layoutTabs(m, cp, lmm, joined, opts) {
         const r = tryTab(e, f2, sc);
         if (!r.ok) continue;
         const H = hull(hullOf[pid].concat(r.t.poly));
-        if (opts.W && !fitsRect(H, opts.W, opts.H)) continue;
+        if (opts.W) { const [Wp, Hp] = whFor(opts, pieces[pid].faces); if (!fitsRect(H, Wp, Hp)) continue; }
         tabs2[e] = { poly: r.t.poly, h: r.t.h, f: f2 }; placed[pid].push({ poly: r.t.poly, bb: r.bb, e, f: f2 }); hullOf[pid] = H;
         break;
       }
@@ -779,7 +788,7 @@ function validateComponent(m, joined, seed, o, info) {
     }
     if (!done && sides.length === 2) { if (!info) return false; ok = false; for (const h of hits) conf.add(h); }
   }
-  if (!fitsRect(hull(pts), o.W, o.H)) { if (info) info.tooBig = true; return false; }
+  { const [Wp, Hp] = whFor(o, faces); if (!fitsRect(hull(pts), Wp, Hp)) { if (info) info.tooBig = true; return false; } }
   return ok;
 }
 
@@ -957,7 +966,8 @@ function repair(m, joined, o) {
     }
     for (const p of cp.pieces) {
       if (fix.has(p.id) || p.faces.length < 2) continue;
-      if (!fitsRect(hull(pieceOutlinePts(p, lmm, m, tl)), o.W, o.H)) fix.set(p.id, splitEdge(cp, m, p));
+      const [Wp, Hp] = whFor(o, p.faces);
+      if (!fitsRect(hull(pieceOutlinePts(p, lmm, m, tl)), Wp, Hp)) fix.set(p.id, splitEdge(cp, m, p));
     }
     if (!fix.size) break;
     for (const e of fix.values()) if (e >= 0) { joined[e] = 0; cuts++; }
