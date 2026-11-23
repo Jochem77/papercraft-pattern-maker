@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Open project button** in the toolbar (next to *Open model*), and *Ctrl+Shift+O*.
 - **Maximum faces per piece** (*Settings → Automatic unfolding*, default 8): automatic unfolding makes no piece with more faces than this. A flat area of several triangles counts as one face. 0 = no limit.
+
+### Changed
+
+- **Cutting plotter files** are now always one ZIP with the SVG per page, the PDF with the same pages in the same order (they belong together when printing and cutting) and the project file.
 
 ## [1.0.0-beta.3] - 2026-11-23
 

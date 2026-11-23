@@ -216,7 +216,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
     <span class="brand"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#2563eb"><path d="M3 20 12 4l9 16z"/><path d="M12 4v16"/><path d="M7.5 12h9"/></svg>Papercraft Pattern Maker</span>
     <div class="menu"><button class="mt" data-i18n>File</button><div class="mdrop">
       <button class="mi" data-cmd="open"><span class="ck"></span><span data-i18n>Open model…</span><span class="ks">Ctrl+O</span></button>
-      <button class="mi" data-cmd="load"><span class="ck"></span><span data-i18n>Open project…</span></button>
+      <button class="mi" data-cmd="load"><span class="ck"></span><span data-i18n>Open project…</span><span class="ks">Ctrl+Shift+O</span></button>
       <button class="mi" data-cmd="save" data-need="model"><span class="ck"></span><span data-i18n>Save project</span><span class="ks">Ctrl+S</span></button>
       <div class="msep"></div>
       <div class="mhead" data-i18n>Export</div>
@@ -280,8 +280,8 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
   <div class="toolbar" role="toolbar">
     <div class="tgroup">
       <button id="bOpen" class="tb icon-only primary" data-i18n-title="Open model: STL, OBJ or GLB (Ctrl+O)" aria-label="Open model: STL, OBJ or GLB (Ctrl+O)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M3 7v10a2 2 0 0 0 2 2h12.5a2 2 0 0 0 1.9-1.4L22 11H7.5a2 2 0 0 0-1.9 1.4L3 19"/></svg></button>
+      <button id="bLoad" class="tb icon-only" data-i18n-title="Open project (Ctrl+Shift+O)" aria-label="Open project (Ctrl+Shift+O)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg></button>
       <button id="bSave" class="tb icon-only" data-i18n-title="Save project (Ctrl+S)" aria-label="Save project (Ctrl+S)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3"/><rect x="7" y="13" width="10" height="8" rx="1"/></svg></button>
-      <button id="bLoad" class="tb" hidden>Load</button>
     </div>
     <span class="tsep"></span>
     <div class="tgroup">
@@ -414,7 +414,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
   <h4>Printing &amp; cutting plotter</h4>
   <ul>
     <li><b>PDF</b>: every page is exactly A4/A3 in millimetres (1:1). Print at <i>Actual size / 100%</i> and measure the 50 mm check line in the margin</li>
-    <li><b>Cutting plotter (SVG)</b>: a ZIP with one SVG per page in millimetres, with layers <i>print</i> (colors, numbers), <i>cut</i> (closed outlines, red) and <i>score</i> (fold lines, blue) and/or <i>perforate</i> (fold lines, green). In Silhouette Studio, choose the cut settings per line color: red = cut through, green = cut through (it is already dashed), blue = score lightly</li>
+    <li><b>Cutting plotter (SVG)</b>: a ZIP with one SVG per page in millimetres, the PDF with the same pages (print it together with the SVGs) and the project file. The SVGs have layers <i>print</i> (colors, numbers), <i>cut</i> (closed outlines, red) and <i>score</i> (fold lines, blue) and/or <i>perforate</i> (fold lines, green). In Silhouette Studio, choose the cut settings per line color: red = cut through, green = cut through (it is already dashed), blue = score lightly</li>
     <li><b>Silhouette Print &amp; Cut</b>: turn on <i>Registration marks (Type 1)</i> in Settings → Cutting plotter, and enter the same length, line thickness and inset in Silhouette Studio (Print &amp; Cut, Type 1). Print the PDF at 100%, open the SVG of the same page in Studio and let the machine read the marks</li>
   </ul>
   </div>
@@ -454,7 +454,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
   <h4>Printen &amp; snijplotter</h4>
   <ul>
     <li><b>PDF</b>: elke pagina is precies A4/A3 in millimeters (1:1). Print op <i>Werkelijke grootte / 100%</i> en meet de controlelijn van 50 mm in de marge na</li>
-    <li><b>Snijplotter (SVG)</b>: een ZIP met één SVG per pagina in millimeters, met lagen <i>print</i> (kleuren, nummers), <i>snijden</i> (gesloten contouren, rood) en <i>rillen</i> (vouwlijnen, blauw) en/of <i>perforeren</i> (vouwlijnen, groen). Kies in Silhouette Studio de snij-instellingen per lijnkleur: rood = doorsnijden, groen = doorsnijden (is al gestippeld), blauw = licht rillen</li>
+    <li><b>Snijplotter (SVG)</b>: een ZIP met één SVG per pagina in millimeters, de PDF met dezelfde pagina’s (print die samen met de SVG’s) en het projectbestand. De SVG’s hebben lagen <i>print</i> (kleuren, nummers), <i>snijden</i> (gesloten contouren, rood) en <i>rillen</i> (vouwlijnen, blauw) en/of <i>perforeren</i> (vouwlijnen, groen). Kies in Silhouette Studio de snij-instellingen per lijnkleur: rood = doorsnijden, groen = doorsnijden (is al gestippeld), blauw = licht rillen</li>
     <li><b>Silhouette Print &amp; Cut</b>: zet bij Instellingen → Snijplotter <i>Registratiemarkeringen (Type 1)</i> aan en neem lengte, lijndikte en inzet over in Silhouette Studio (Printen &amp; snijden, Type 1). Print de PDF op 100%, open in Studio de SVG van dezelfde pagina en laat de machine de markeringen lezen</li>
   </ul>
   </div>
@@ -595,6 +595,8 @@ const NL = {
   'Skip folds below': 'Vouwen overslaan onder', 'Folds that bend less than this are not scored, perforated or printed: they fold easily by hand. 0 = all folds. Tab folds are always included.': 'Vouwen die minder knikken dan dit worden niet gerild, geperforeerd of geprint: die vouw je makkelijk met de hand. 0 = alle vouwen. Vouwen van stroken worden altijd meegenomen.',
   'Maximum faces per piece': 'Maximaal aantal vlakken per stuk',
   'Smaller pieces with fewer faces are easier to fold. A flat area made of several triangles (for example a square) counts as one face. 0 = no limit.': 'Kleinere stukken met minder vlakken zijn makkelijker te vouwen. Een plat vlak van meerdere driehoeken (bijvoorbeeld een vierkant) telt als één vlak. 0 = geen grens.',
+  'Open project (Ctrl+Shift+O)': 'Project openen (Ctrl+Shift+O)', 'Creating files…': 'Bestanden maken…', 'Export failed: ': 'Exporteren mislukt: ',
+  'ZIP with {n} SVG {pages}, the PDF and the project file': 'ZIP met {n} SVG-{pages}, de PDF en het projectbestand',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2639,13 +2641,21 @@ function makeZip(files) {
   e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
   return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/zip' });
 }
-function exportPlotter() {
+// One ZIP with everything that belongs together: an SVG per page for the cutter, the PDF with the
+// same pages in the same order (to print), and the project file (to change it later).
+async function exportPlotter() {
   if (!S.cp) return;
-  const pages = pagesWithContent();
-  const files = pages.map((i, k) => ({ name: `${baseName()}-${tr('page')}-${String(k + 1).padStart(2, '0')}.svg`, data: plotterSVG(i) }));
-  if (files.length === 1) download(files[0].name, files[0].data, 'image/svg+xml');
-  else download(baseName() + '-' + tr('cutter') + '.zip', makeZip(files));
-  toast(tr('{n} {pages} exported (mm, layers: print / cut / fold)', { n: files.length, pages: pl(files.length, 'page', 'pages') }));
+  busy(true, tr('Creating files…'));
+  try {
+    const pages = pagesWithContent();
+    const files = pages.map((i, k) => ({ name: `${baseName()}-${tr('page')}-${String(k + 1).padStart(2, '0')}.svg`, data: plotterSVG(i) }));
+    const pdf = await buildPDF();
+    files.push({ name: `${baseName()}-${S.set.paper}.pdf`, data: new Uint8Array(await pdf.arrayBuffer()) });
+    files.push({ name: baseName() + '.papercraft.json', data: JSON.stringify(projectData()) });
+    download(baseName() + '-' + tr('cutter') + '.zip', makeZip(files));
+    toast(tr('ZIP with {n} SVG {pages}, the PDF and the project file', { n: pages.length, pages: pl(pages.length, 'page', 'pages') }), 4000);
+  } catch (e) { console.error(e); toast(tr('Export failed: ') + e.message, 5000); }
+  busy(false);
 }
 
 // ---------------------------------------------------------------- knoppen & toetsen
@@ -2738,7 +2748,7 @@ window.addEventListener('keydown', ev => {
   if (ev.target.matches('input,select,textarea')) return;
   const k = ev.key.toLowerCase();
   if (k === 'escape' && mbar.querySelector('.menu.open')) { closeMenus(); return; }
-  if ((ev.ctrlKey || ev.metaKey) && k === 'o') { ev.preventDefault(); $('fModel').click(); return; }
+  if ((ev.ctrlKey || ev.metaKey) && k === 'o') { ev.preventDefault(); $(ev.shiftKey ? 'fProj' : 'fModel').click(); return; }
   if ((ev.ctrlKey || ev.metaKey) && k === 'p') { ev.preventDefault(); if (S.cp) exportPDF(); return; }
   if ((ev.ctrlKey || ev.metaKey) && ev.key === ',') { ev.preventDefault(); openSettings(); return; }
   if (ev.key === 'F1') { ev.preventDefault(); $('help').showModal(); return; }
@@ -2766,7 +2776,7 @@ setTool('select');
 const qp = new URLSearchParams(location.search).get('model');
 if (qp) fetch(qp).then(r => r.arrayBuffer()).then(b => loadModelBuffer(b, qp.split('/').pop(), null)).catch(e => toast(tr('Loading failed: ') + e.message));
 window.__S = S;
-window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps };
+window.__api = { openSimplify, projectData, loadProject, setTool, focusPiece3D, setPaint, paintFace, finishPaint, fixTinyColors, toggleEdge, flipTab, refresh, runAuto, plotterSVG, cutLoops, pagesWithContent, rotateSel, selectPiece, undo, autoLayout, updateWorld, render2D, applySetting, camera, controls, center, req3, pdfPageOps, exportPlotter };
 </script>
 </body>
 </html>
