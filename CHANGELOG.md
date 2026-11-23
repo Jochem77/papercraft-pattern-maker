@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Added
 
-- **Easier to insert glueless tabs** (*Tab and flap*): *Relief cuts at the slit* (default 1 mm) adds a short cut at both ends of each slit, square to it and only into the hidden flap; the bit of flap between them bends away and makes room for the thickness of the card. Optionally the slit can be cut as a narrow slot (*Slit width*, default off; a thin strip does not always come out cleanly). *Extra slit length* (default 0.6 mm, was a fixed 0.4 mm) sets how much longer the slit is than the tab.
-- **Glueless insert tabs without barbs** (default): the tabs of *Tab and flap* are now straight with a chamfered point and a little narrower than the slit, so they slide in easily; they keep the edges in line. The barbs were too long to push through the card. They are still available with *Settings → Glue tabs → Barbs on the insert tabs*, now with an adjustable *Barb size* (how far each barb sticks out past the slit; default 0.8 mm instead of 0.7–2 mm).
+- **Two flaps glued together** (*Settings → Glue tabs → Type*): both pieces get a flap along each seam; fold both inwards and glue them onto each other. The edge number is printed on both flaps, so with *Numbers only on tabs* nothing is printed on the faces and the outside can be scored. Where a second flap does not fit, a normal glue tab is used.
+
+### Removed
+
+- **Tab and flap (no glue)**: inserting the tabs through the slits was too hard in practice (the flaps get in each other's way inside and thick card does not go through a slit). Projects and settings that used it now use *Two flaps glued together*.
 
 ## [1.0.0-beta.4] - 2026-11-23
 

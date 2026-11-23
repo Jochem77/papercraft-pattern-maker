@@ -606,8 +606,8 @@ function layoutTabs(m, cp, lmm, joined, opts) {
     placed[pieceOf[f]].push({ poly: res.t.poly, bb: res.bb, e, f });
   }
   for (const c of conflicts) tabs[c.e].bad = true;
-  // opts.both: also a flap on the other side of every cut edge (for "tab and flap" without glue:
-  // the tab hooks into a slit in that flap). Only where it fits; otherwise tabs2[e] stays empty
+  // opts.both: also a flap on the other side of every cut edge (for "two flaps glued together":
+  // both flaps fold inwards and are glued onto each other). Only where it fits; otherwise tabs2[e] stays empty
   // and the edge gets a normal glue tab. The unfolding itself does not change.
   let tabs2 = null;
   if (opts.both) {

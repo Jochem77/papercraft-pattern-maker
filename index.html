@@ -835,8 +835,8 @@ function layoutTabs(m, cp, lmm, joined, opts) {
     placed[pieceOf[f]].push({ poly: res.t.poly, bb: res.bb, e, f });
   }
   for (const c of conflicts) tabs[c.e].bad = true;
-  // opts.both: also a flap on the other side of every cut edge (for "tab and flap" without glue:
-  // the tab hooks into a slit in that flap). Only where it fits; otherwise tabs2[e] stays empty
+  // opts.both: also a flap on the other side of every cut edge (for "two flaps glued together":
+  // both flaps fold inwards and are glued onto each other). Only where it fits; otherwise tabs2[e] stays empty
   // and the edge gets a normal glue tab. The unfolding itself does not change.
   let tabs2 = null;
   if (opts.both) {
@@ -2157,7 +2157,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', finBarbs: false, finBarbW: 0.8, finSlitW: 0, finRelief: 1, finSlitPlay: 0.6, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
+  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
 };
 const S = {
@@ -2279,8 +2279,6 @@ const NL = {
   'Pieces: together': 'Stukken: samen', 'Pieces: gaps': 'Stukken: openingen', 'Pieces: exploded': 'Stukken: uit elkaar', 'How far the pieces move apart': 'Hoe ver de stukken uit elkaar gaan',
   'Show the pieces separately in 3D: with a small gap, or moved apart (exploded). The pattern does not change.': 'Toon de stukken los in 3D: met een kleine opening, of uit elkaar geschoven. Het patroon verandert niet.',
   'Type': 'Soort', 'With glue': 'Met lijm',
-  'Without glue. Tab and flap: the other piece gets a flap with a slit on its fold line; the tab goes through the slit, so tab and flap cross at the seam and keep the edges in line (with barbs they also hook it tight). Nothing shows on the outside. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room, a normal glue tab is used.': 'Zonder lijm. Lip en randje: het andere stuk krijgt een randje met een sneetje op de vouwlijn; de lip gaat door dat sneetje, zodat lip en randje elkaar op de naad kruisen en de randen recht tegen elkaar houden (met weerhaakjes haken ze de naad ook vast). Aan de buitenkant zie je niets. Het beste met een snijplotter en een strookbreedte van 8 mm of meer. Waar geen ruimte is, komt een gewone plakstrook.',
-  'Tab and flap (no glue, hidden)': 'Lip en randje (zonder lijm, onzichtbaar)',
   'Faces': 'Vlakken', 'Numbers only on tabs': 'Nummers alleen op stroken',
   'Piece numbers go on a glue tab or flap, and edge numbers are only printed on the tabs and flaps. The faces stay clean, so the printed side can be the outside of the model (for example to score on the outside). Tip: also switch off Print fold lines.': 'Stuknummers komen op een plakstrook of randje, en randnummers alleen op de stroken en randjes. De vlakken blijven schoon, zodat de bedrukte kant de buitenkant van het model kan zijn (bijvoorbeeld om aan de buitenkant te rillen). Tip: zet ook Vouwlijnen printen uit.',
   'Skip folds below': 'Vouwen overslaan onder', 'Folds that bend less than this are not scored, perforated, printed or shown in the pattern and the 3D view: they fold easily by hand. 0 = all folds. Tab folds are always included.': 'Vouwen die minder knikken dan dit worden niet gerild, geperforeerd, geprint of in het patroon en de 3D-weergave getoond: die vouw je makkelijk met de hand. 0 = alle vouwen. Vouwen van stroken worden altijd meegenomen.',
@@ -2307,15 +2305,8 @@ const NL = {
   'Object {n}': 'Object {n}', 'Size in %': 'Grootte in %', 'All at 100 %': 'Alles op 100 %',
   'Click an object in the 3D view or in this list. A new size unfolds the model again.': 'Klik op een object in de 3D-weergave of in deze lijst. Een nieuwe grootte vouwt het model opnieuw uit.',
   'Name of this material: on the pages and in the file name of its PDF': 'Naam van dit materiaal: staat op de pagina’s en in de bestandsnaam van de PDF',
-  'Barbs on the insert tabs': 'Weerhaakjes aan de insteekflapjes',
-  'Off: the tabs are straight with a pointed end and slide easily through the slit; they only keep the edges in line. On: small barbs hook behind the slit and hold the seam, but they are harder to push through.': 'Uit: de flapjes zijn recht met een spitse punt en schuiven makkelijk door de sneet; ze houden alleen de randen recht tegen elkaar. Aan: kleine weerhaakjes haken achter de sneet en houden de naad vast, maar zijn lastiger door de sneet te duwen.',
-  'Barb size': 'Grootte weerhaakjes',
-  'How far each barb sticks out past the slit, on both sides. Smaller barbs go through the slit more easily but hold less. Thick card: about 0.5–1 mm.': 'Hoe ver elk weerhaakje aan beide kanten buiten de sneet uitsteekt. Kleinere haakjes gaan makkelijker door de sneet maar houden minder vast. Dik karton: ongeveer 0,5–1 mm.',
-  'Slit width': 'Breedte sneetje', 'Extra slit length': 'Sneetje langer dan flapje',
-  'The slit is cut as a narrow slot this wide (about the thickness of your card, photo card 0.3–0.4 mm). Such a thin strip does not always come out cleanly; relief cuts usually work better. 0 = a single cut.': 'Het sneetje wordt als een smal gleufje van deze breedte uitgesneden (ongeveer de dikte van je karton, fotokarton 0,3–0,4 mm). Zo’n dun reepje komt niet altijd netjes los; haakse sneetjes werken meestal beter. 0 = één snijlijn.',
-  'Relief cuts at the slit': 'Haakse sneetjes bij het sneetje',
-  'A short cut at both ends of the slit, square to it and only into the flap (hidden inside). The bit of flap between them bends away, so the tab goes in more easily, also with thick card. 0 = off.': 'Een kort sneetje aan beide uiteinden van het sneetje, haaks erop en alleen in het randje (aan de binnenkant, onzichtbaar). Het stukje randje ertussen buigt weg, zodat het flapje makkelijker insteekt, ook bij dik karton. 0 = uit.',
-  'How much longer the slit is than the tab is wide. More = easier to insert, but the edges can shift a little.': 'Hoeveel langer het sneetje is dan het flapje breed is. Meer = makkelijker insteken, maar de randen kunnen iets verschuiven.',
+  'Two flaps glued together': 'Twee flapjes op elkaar plakken',
+  'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. Where a second flap does not fit, a normal glue tab is used.': 'Twee flapjes op elkaar plakken: beide stukken krijgen een flapje langs de naad. Vouw beide flapjes naar binnen en plak ze op elkaar. Het randnummer staat op allebei, dus op de vlakken hoeft niets geprint te worden en de buitenkant kan gerild worden. Waar geen tweede flapje past, komt een gewone plakstrook.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2439,12 +2430,7 @@ const TABS = [
     { k: 'tabH', label: 'Tab width', type: 'number', unit: 'mm', min: 2, max: 25, step: 0.5, help: 'How far a glue tab sticks out.' },
     { k: 'tabAngle', label: 'Angle', type: 'number', unit: '°', min: 15, max: 85, step: 1, help: 'Slope of the sides; smaller = more pointed.' },
     { k: 'minTab', label: 'Minimum width', type: 'number', unit: '%', min: 30, max: 100, step: 5, help: 'Where space is tight, a tab may become this much narrower (or more pointed).' },
-    { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', fin: 'Tab and flap (no glue, hidden)' }, help: 'Without glue. Tab and flap: the other piece gets a flap with a slit on its fold line; the tab goes through the slit, so tab and flap cross at the seam and keep the edges in line (with barbs they also hook it tight). Nothing shows on the outside. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room, a normal glue tab is used.' },
-    { k: 'finRelief', label: 'Relief cuts at the slit', type: 'number', unit: 'mm', min: 0, max: 4, step: 0.1, dep: 'tabStyle=fin', help: 'A short cut at both ends of the slit, square to it and only into the flap (hidden inside). The bit of flap between them bends away, so the tab goes in more easily, also with thick card. 0 = off.' },
-    { k: 'finSlitW', label: 'Slit width', type: 'number', unit: 'mm', min: 0, max: 2, step: 0.05, dep: 'tabStyle=fin', help: 'The slit is cut as a narrow slot this wide (about the thickness of your card, photo card 0.3–0.4 mm). Such a thin strip does not always come out cleanly; relief cuts usually work better. 0 = a single cut.' },
-    { k: 'finSlitPlay', label: 'Extra slit length', type: 'number', unit: 'mm', min: 0, max: 3, step: 0.1, dep: 'tabStyle=fin', help: 'How much longer the slit is than the tab is wide. More = easier to insert, but the edges can shift a little.' },
-    { k: 'finBarbs', label: 'Barbs on the insert tabs', type: 'check', dep: 'tabStyle=fin', help: 'Off: the tabs are straight with a pointed end and slide easily through the slit; they only keep the edges in line. On: small barbs hook behind the slit and hold the seam, but they are harder to push through.' },
-    { k: 'finBarbW', label: 'Barb size', type: 'number', unit: 'mm', min: 0.2, max: 3, step: 0.1, dep: 'finBarbs', help: 'How far each barb sticks out past the slit, on both sides. Smaller barbs go through the slit more easily but hold less. Thick card: about 0.5–1 mm.' }] },
+    { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', pair: 'Two flaps glued together' }, help: 'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. Where a second flap does not fit, a normal glue tab is used.' }] },
   { id: 'auto', icon: '✂️', title: 'Automatic unfolding', intro: 'How the model is divided into pieces automatically.', items: [
     { k: 'pieceShape', label: 'Shape of the pieces', type: 'select', opts: { large: 'Large (fewest pieces)', compact: 'Compact', vcompact: 'Very compact' }, help: 'Compact pieces have no long arms or ragged edges, so they are easier to fold and glue. They are a bit more pieces.' },
     { k: 'sharpCut', label: 'Cut at sharp folds', type: 'check', help: 'Sharp folds become a cut with a glue tab: easier to build than folding a sharp corner.' },
@@ -2647,8 +2633,8 @@ function applySetting(k) {
     S.prevCols = nc; updateWorld(); render2D(); fitView(); return;
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
-  if (k === 'tabStyle' && (S.set.tabStyle === 'fin' || (S.tl && S.tl.tabs2))) { S.world = null; refresh(); fitView(); return; }
-  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle', 'cleanFaces', 'scoreMinDeg', 'finBarbs', 'finBarbW', 'finSlitW', 'finSlitPlay', 'finRelief'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
+  if (k === 'tabStyle' && (S.set.tabStyle === 'pair' || (S.tl && S.tl.tabs2))) { S.world = null; refresh(); fitView(); return; }
+  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle', 'cleanFaces', 'scoreMinDeg'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
 }
 
 // ---------------------------------------------------------------- bestanden
@@ -2859,7 +2845,8 @@ async function openSimplify() {
 async function loadProject(p) {
   if (!p || p.app !== 'papercraft') throw new Error(tr('Not a papercraft project'));
   S.set = { ...DEF, ...p.set };
-  if (!['glue', 'fin'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
+  if (S.set.tabStyle === 'fin') S.set.tabStyle = 'pair'; // "tab and flap" was removed
+  if (!['glue', 'pair'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
   if (p.set && p.set.thinMM === undefined) S.set.thinMM = 0; // older project: its mesh was not cleaned up
   syncSide(); saveSettings();
   await loadModelBuffer(b64ToBuf(p.file), p.name, p);
@@ -3248,8 +3235,8 @@ function refresh() {
   S.cp = cp;
   S.lmm = Core.toMM(cp.local, S.scale);
   const st = S.set;
-  const fitWH = st.tabStyle === 'fin' ? autoOptions() : null; // flaps only where the piece still fits the paper
-  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'fin', W: fitWH && fitWH.W, H: fitWH && fitWH.H, faceWH: fitWH && fitWH.faceWH });
+  const fitWH = st.tabStyle === 'pair' ? autoOptions() : null; // flaps only where the piece still fits the paper
+  S.tl = Core.layoutTabs(m, cp, S.lmm, S.joined, { tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, tabUser: S.tabUser, both: st.tabStyle === 'pair', W: fitWH && fitWH.W, H: fitWH && fitWH.H, faceWH: fitWH && fitWH.faceWH });
   S.so = Core.selfOverlaps(cp, S.lmm);
   numberEdges();
   // plaats van elk stuk afleiden uit de vorige wereld-coördinaten (stukken blijven waar ze waren)
@@ -3320,90 +3307,8 @@ function underlineSvg(n, cx, cy, fs, col, transform) {
 const lum = c => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]);
 function faceFill(f) { return S.faceColor ? S.faceColor[f] : null; }
 
-// ---------------------------------------------------------------- lijmloze stroken
-// "Tab and flap" (tabStyle 'fin'): one side of a cut edge gets arrow-shaped tabs with a short
-// neck, the other side a flap with slits ON its fold line. The tabs go through the slits, so tab
-// and flap cross exactly at the seam: the tab lies under the other piece, the flap under this one,
-// and the shoulders of the tabs pull the seam tight. Long edges get several hooks.
-// The tab shape stays inside the normal glue tab (the trapezoid t.poly), so unfolding and the
-// check for room do not change. Returns null when there is no room: then a normal glue tab.
-// mm the slit is longer than the tab (its neck) is wide (Settings → Glue tabs → Extra slit length)
-const slitPlay = () => Math.max(0, Math.min(3, +S.set.finSlitPlay >= 0 ? +S.set.finSlitPlay : 0.6));
-const FIN_NECK = 1.0;  // mm neck of the tab (passes two layers of card through the slit)
-function gluelessTab(f, i, t) {
-  if (S.set.tabStyle !== 'fin') return null;
-  const m = S.mesh, Pt = t.poly, a = Pt[0], b = Pt[3], h = t.h;
-  const L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (!(L > 0) || !(h > 0)) return null;
-  const e = m.FE[f][i], g = Core.otherFace(m.E[e], f);
-  const t2 = S.tl.tabs2 ? S.tl.tabs2[e] : null;
-  if (!t2) return null;
-  // this tab: x along the edge from a, y outwards
-  const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
-  const dTop = (Pt[1][0] - a[0]) * u[0] + (Pt[1][1] - a[1]) * u[1];
-  let o = [Pt[1][0] - a[0] - u[0] * dTop, Pt[1][1] - a[1] - u[1] * dTop]; const ol = Math.hypot(o[0], o[1]); o = [o[0] / ol, o[1] / ol];
-  const Q = (x, y) => [a[0] + u[0] * x + o[0] * y, a[1] + u[1] * x + o[1] * y];
-  const xmin = y => y * dTop / h, xmax = y => L - y * dTop / h;
-  // the flap on the other side runs the other way along the edge
-  const A2 = t2.poly[0], B2 = t2.poly[3], u2 = [(B2[0] - A2[0]) / L, (B2[1] - A2[1]) / L];
-  const v2 = [t2.poly[1][0] - A2[0], t2.poly[1][1] - A2[1]], d2 = v2[0] * u2[0] + v2[1] * u2[1];
-  const w2 = [v2[0] - u2[0] * d2, v2[1] - u2[1] * d2], h2 = Math.hypot(w2[0], w2[1]);
-  const into = h2 > 0 ? [w2[0] / h2, w2[1] / h2] : null; // from the fold line into the flap
-  const onFold = x => [A2[0] + u2[0] * (L - x), A2[1] + u2[1] * (L - x)];
-  const barbs = !!S.set.finBarbs;
-  const neckTop = barbs ? FIN_NECK : 0;
-  if (neckTop > h - 1.2) return null;
-  // plain insert tab (default): straight sides up to the shoulder, then a chamfered point. It is a
-  // little narrower than the slit, so it slides in easily; it only keeps the edges in line.
-  const plain = (cx, wseg) => {
-    const hs = h * 0.55;
-    const wn = Math.min(wseg * 0.8, 2 * (cx - xmin(hs)) - 0.4, 2 * (xmax(hs) - cx) - 0.4);
-    if (wn < 2.5) return null;
-    const wt = Math.min(0.55 * wn, 2 * (cx - xmin(h)) - 0.2, 2 * (xmax(h) - cx) - 0.2);
-    if (wt < 0.8) return null;
-    const x0 = cx - wn / 2 - slitPlay() / 2, x1 = cx + wn / 2 + slitPlay() / 2;
-    if (x0 < 1.5 || x1 > L - 1.5) return null; // keep the ends of the fold line whole
-    return { cx, wn, wh: wn, wt, hs, slit: [onFold(x0), onFold(x1)] };
-  };
-  const tooth = (cx, wseg) => {
-    if (!barbs) return plain(cx, wseg);
-    const wh = Math.min(wseg * 0.85, 2 * (cx - xmin(neckTop)) - 0.4, 2 * (xmax(neckTop) - cx) - 0.4);
-    const barb = Math.min(Math.max(0.2, +S.set.finBarbW || 0.8), 0.25 * wh), wn = wh - 2 * barb; // how far a barb sticks out past the slit
-    if (wn < 2.5) return null;
-    const wt = Math.min(0.55 * wh, 2 * (cx - xmin(h)) - 0.2, 2 * (xmax(h) - cx) - 0.2);
-    if (wt < 0.8) return null;
-    const x0 = cx - wn / 2 - slitPlay() / 2, x1 = cx + wn / 2 + slitPlay() / 2;
-    if (x0 < 1.5 || x1 > L - 1.5) return null; // keep the ends of the fold line whole
-    return { cx, wn, wh, wt, slit: [onFold(x0), onFold(x1)] };
-  };
-  let teeth = [];
-  if (L >= 24) { // several hooks along long edges
-    const k = Math.max(2, Math.floor(L / 12));
-    for (let j = 0; j < k; j++) { const tt = tooth((j + 0.5) * L / k, L / k); if (tt) teeth.push(tt); }
-  }
-  for (const w of [1, 0.7, 0.5]) { if (teeth.length) break; const t1 = tooth(L / 2, L * w); if (t1) teeth = [t1]; }
-  if (!teeth.length) return null;
-  const shape = [a], folds = [];
-  for (const T of teeth) {
-    const l0 = Q(T.cx - T.wn / 2, 0), r0 = Q(T.cx + T.wn / 2, 0);
-    if (T.hs) shape.push(l0, Q(T.cx - T.wn / 2, T.hs), Q(T.cx - T.wt / 2, h), Q(T.cx + T.wt / 2, h), Q(T.cx + T.wn / 2, T.hs), r0);
-    else shape.push(l0, Q(T.cx - T.wn / 2, neckTop), Q(T.cx - T.wh / 2, neckTop), Q(T.cx - T.wt / 2, h), Q(T.cx + T.wt / 2, h), Q(T.cx + T.wh / 2, neckTop), Q(T.cx + T.wn / 2, neckTop), r0);
-    folds.push([l0, r0]);
-  }
-  shape.push(b);
-  const mid = teeth[Math.floor((teeth.length - 1) / 2)];
-  return { shape, folds, heads: teeth.map(T => ({ cx: T.cx, wh: T.wh, wt: T.wt })), frame: { a, u, o, h, neckTop }, slits: teeth.map(T => ({ g, e, pts: T.slit, into, h2 })), label: { pos: Q(mid.cx, (neckTop + h) / 2), max: Math.min((h - neckTop) * 0.7, mid.wh * 0.45) } };
-}
-
 function buildDrawings() {
   const m = S.mesh, st = S.set, cp = S.cp;
-  const slitsTodo = [];
-  const glMap = new Map();
-  m.E.forEach((E, e) => {
-    const f = S.tl.tabFace[e], t = S.tl.tabs[e];
-    if (f < 0 || !t || t.bad) return;
-    const r = gluelessTab(f, m.FE[f].indexOf(e), t);
-    if (r) glMap.set(e, r);
-  });
   for (const p of cp.pieces) {
     const d = { faces: [], tabs: [], cuts: [], folds: [], hits: [], labels: [], bad: false };
     p.d = d;
@@ -3439,32 +3344,17 @@ function buildDrawings() {
           const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
           if (S.tl.tabFace[e] === f) {
             const t = S.tl.tabs[e];
-            // without glue (when possible): other shape inside the same tab area, plus slits
-            const gl = glMap.get(e) || null;
-            d.tabs.push({ e, f, poly: t.poly, shape: gl ? gl.shape : null, heads: gl ? gl.heads : null, frame: gl ? gl.frame : null, bad: t.bad });
+            d.tabs.push({ e, f, poly: t.poly, shape: null, bad: t.bad });
             if (t.bad) d.bad = true;
-            if (gl) {
-              for (const [p0, p1] of gl.folds) d.folds.push({ e, a: p0, b: p1, type: foldType(true), tab: true });
-              slitsTodo.push(...gl.slits);
-            } else d.folds.push({ e, a, b, type: foldType(true), tab: true });
-            if (gl && gl.label) {
-              const fs = Math.min(st.fontSize, gl.label.max, l * 0.35);
-              d.labels.push({ e, x: gl.label.pos[0], y: gl.label.pos[1], ang, fs, col: [255, 255, 255], tab: true });
-            } else {
-              const fs = Math.min(st.fontSize, t.h * 0.7, l * 0.35);
-              d.labels.push({ e, x: mx - uy * t.h / 2, y: my + ux * t.h / 2, ang, fs, col: [255, 255, 255], tab: true });
-            }
+            d.folds.push({ e, a, b, type: foldType(true), tab: true });
+            const fs = Math.min(st.fontSize, t.h * 0.7, l * 0.35);
+            d.labels.push({ e, x: mx - uy * t.h / 2, y: my + ux * t.h / 2, ang, fs, col: [255, 255, 255], tab: true });
           } else {
-            const t2 = st.tabStyle === 'fin' && glMap.has(e) && S.tl.tabs2 ? S.tl.tabs2[e] : null;
-            if (t2) { // flap with the slit (the slit itself is added below)
+            // two flaps glued together: this side gets a flap too (where it fits)
+            const t2 = st.tabStyle === 'pair' && S.tl.tabs2 ? S.tl.tabs2[e] : null;
+            if (t2) {
               d.tabs.push({ e, f, poly: t2.poly, shape: null, bad: false, flap: true });
-              // fold line of the flap, interrupted by the slits on it
-              const L2 = Math.hypot(b[0] - a[0], b[1] - a[1]), tt = q => ((q[0] - a[0]) * (b[0] - a[0]) + (q[1] - a[1]) * (b[1] - a[1])) / (L2 * L2);
-              const iv = glMap.get(e).slits.map(x => [tt(x.pts[0]), tt(x.pts[1])].sort((p, q) => p - q)).sort((p, q) => p[0] - q[0]);
-              let t0 = 0;
-              const at = t => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-              for (const [s0, s1] of iv) { if (s0 > t0) d.folds.push({ e, a: at(t0), b: at(s0), type: foldType(true), tab: true }); t0 = Math.max(t0, s1); }
-              if (t0 < 1) d.folds.push({ e, a: at(t0), b, type: foldType(true), tab: true });
+              d.folds.push({ e, a, b, type: foldType(true), tab: true });
             } else d.cuts.push({ e, a, b });
             if (t2) { // the number goes on the flap, so the face itself stays clean
               const fs = Math.min(st.fontSize, t2.h * 0.6, l * 0.35);
@@ -3482,31 +3372,6 @@ function buildDrawings() {
     }
     d.numPos = choosePieceNumPos(cands, d.labels);
     d.cands = cands;
-  }
-  // slits belong to the piece of the other face; they are cut like any other cut line
-  for (const sl of slitsTodo) {
-    const d = cp.pieces[cp.pieceOf[sl.g]].d;
-    // Slit width > 0: a narrow slot (as wide as the card is thick) instead of one cut, so the tab
-    // goes through without pushing the card apart
-    const sw = Math.max(0, Math.min(2, +S.set.finSlitW || 0)), [A, B] = sl.pts, L = Math.hypot(B[0] - A[0], B[1] - A[1]);
-    if (sw > 0.05 && L > 0) {
-      const nx = -(B[1] - A[1]) / L * sw / 2, ny = (B[0] - A[0]) / L * sw / 2;
-      const c = [[A[0] + nx, A[1] + ny], [B[0] + nx, B[1] + ny], [B[0] - nx, B[1] - ny], [A[0] - nx, A[1] - ny]];
-      for (let k = 0; k < 4; k++) d.cuts.push({ a: c[k], b: c[(k + 1) % 4], slit: true });
-    } else d.cuts.push({ a: A, b: B, slit: true });
-    // relief cuts: a short cut at both ends of the slit, square to it and only into the flap (which is
-    // hidden inside), so the strip of flap between them bends away and makes room for the card
-    const rl = Math.min(Math.max(0, +S.set.finRelief || 0), sl.h2 ? sl.h2 * 0.6 : 0);
-    if (rl > 0.1 && sl.into) for (const E of [A, B]) d.cuts.push({ a: E, b: [E[0] + sl.into[0] * rl, E[1] + sl.into[1] * rl], slit: true });
-    // the edge number on this side moves inwards, past the slit
-  }
-  // piece numbers keep clear of the slits
-  if (slitsTodo.length) for (const p of cp.pieces) {
-    const sl = p.d.cuts.filter(c => c.slit);
-    if (!sl.length) continue;
-    const obs = [];
-    for (const c of sl) for (let t = 0; t <= 4; t++) obs.push({ x: c.a[0] + (c.b[0] - c.a[0]) * t / 4, y: c.a[1] + (c.b[1] - c.a[1]) * t / 4, r: 0.4 });
-    p.d.numPos = choosePieceNumPos(p.d.cands, p.d.labels, obs);
   }
   // piece numbers on a tab; the place on the face stays for the 3D view (f, w)
   if (st.cleanFaces) for (const p of cp.pieces) {
@@ -3527,19 +3392,6 @@ function tabNumPos(p) {
   for (const t of d.tabs) {
     const lab = d.labels.find(l => l.tab && l.e === t.e && l.fs >= 0.9);
     const lw = lab ? String(S.num[lab.e] || 88).length * k * lab.fs / 2 + 0.3 : 0; // half width of the edge number
-    if (t.shape) { // arrow tab: in a head that does not carry the edge number
-      if (!t.heads) continue;
-      const F = t.frame, ang = Math.atan2(F.u[1], F.u[0]) * 180 / Math.PI, hh = F.h - F.neckTop;
-      for (const H of t.heads) {
-        const width = yy => H.wh + (H.wt - H.wh) * (yy - F.neckTop) / hh, yc = F.neckTop + hh / 2;
-        const c = [F.a[0] + F.u[0] * H.cx + F.o[0] * yc, F.a[1] + F.u[1] * H.cx + F.o[1] * yc];
-        if (lab && Math.hypot(c[0] - lab.x, c[1] - lab.y) < width(yc) / 2) continue;
-        for (let fs = Math.min(st.pieceNumSize, (hh - 0.4) / PILL_H); fs >= 1.3; fs *= 0.9) {
-          if (pillW(fs) + 0.4 <= width(yc + fs * PILL_H / 2)) { offer(fs, c, ang, fs * 100 - 5, null); break; }
-        }
-      }
-      continue;
-    }
     const P0 = t.poly, a = P0[0], b = P0[3], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (!(L > 0)) continue;
     const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], dTop = (P0[1][0] - a[0]) * u[0] + (P0[1][1] - a[1]) * u[1];
     const ov = [P0[1][0] - a[0] - u[0] * dTop, P0[1][1] - a[1] - u[1] * dTop], h = Math.hypot(ov[0], ov[1]); if (!(h > 0)) continue;
@@ -4354,7 +4206,8 @@ function drawHover3D() {
 $('view3d').addEventListener('change', () => update3DColors());
 $('showDims').addEventListener('change', req3);
 $('mirror3d').checked = !!S.set.mirror3d; applyMirror3();
-if (!['glue', 'fin'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
+if (S.set.tabStyle === 'fin') S.set.tabStyle = 'pair'; // "tab and flap" was removed
+if (!['glue', 'pair'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
 if (!S.set.split3d) S.set.split3d = S.set.gaps3d ? 'gaps' : 'none';
 if (!(S.set.explodeAmt >= 50 && S.set.explodeAmt <= 100)) S.set.explodeAmt = 75;
 $('split3d').value = S.set.split3d; $('explode3d').value = S.set.explodeAmt; $('explode3d').hidden = S.set.split3d !== 'explode';
