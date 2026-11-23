@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Two flaps glued together** (*Settings → Glue tabs → Type*): both pieces get a flap along each seam; fold both inwards and glue them onto each other. The edge number is printed on both flaps, so with *Numbers only on tabs* nothing is printed on the faces and the outside can be scored. Where a second flap does not fit, a normal glue tab is used.
+- **Two flaps glued together** (*Settings → Glue tabs → Type*): both pieces get a flap along each seam; fold both inwards and glue them onto each other. The edge number is printed on both flaps, so with *Numbers only on tabs* nothing is printed on the faces and the outside can be scored. Automatic unfolding keeps room for both flaps on every seam; switching the type unfolds again.
 
 ### Removed
 

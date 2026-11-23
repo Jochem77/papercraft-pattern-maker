@@ -649,7 +649,7 @@ const NL = {
   'Click an object in the 3D view or in this list. A new size unfolds the model again.': 'Klik op een object in de 3D-weergave of in deze lijst. Een nieuwe grootte vouwt het model opnieuw uit.',
   'Name of this material: on the pages and in the file name of its PDF': 'Naam van dit materiaal: staat op de pagina’s en in de bestandsnaam van de PDF',
   'Two flaps glued together': 'Twee flapjes op elkaar plakken',
-  'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. Where a second flap does not fit, a normal glue tab is used.': 'Twee flapjes op elkaar plakken: beide stukken krijgen een flapje langs de naad. Vouw beide flapjes naar binnen en plak ze op elkaar. Het randnummer staat op allebei, dus op de vlakken hoeft niets geprint te worden en de buitenkant kan gerild worden. Waar geen tweede flapje past, komt een gewone plakstrook.',
+  'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. The pieces are made so that both flaps fit; only on pieces you cut by hand can a normal glue tab remain where a second flap does not fit.': 'Twee flapjes op elkaar plakken: beide stukken krijgen een flapje langs de naad. Vouw beide flapjes naar binnen en plak ze op elkaar. Het randnummer staat op allebei, dus op de vlakken hoeft niets geprint te worden en de buitenkant kan gerild worden. De stukken worden zo gemaakt dat beide flapjes passen; alleen bij stukken die je zelf knipt kan er een gewone plakstrook overblijven waar geen tweede flapje past.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -773,7 +773,7 @@ const TABS = [
     { k: 'tabH', label: 'Tab width', type: 'number', unit: 'mm', min: 2, max: 25, step: 0.5, help: 'How far a glue tab sticks out.' },
     { k: 'tabAngle', label: 'Angle', type: 'number', unit: '°', min: 15, max: 85, step: 1, help: 'Slope of the sides; smaller = more pointed.' },
     { k: 'minTab', label: 'Minimum width', type: 'number', unit: '%', min: 30, max: 100, step: 5, help: 'Where space is tight, a tab may become this much narrower (or more pointed).' },
-    { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', pair: 'Two flaps glued together' }, help: 'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. Where a second flap does not fit, a normal glue tab is used.' }] },
+    { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', pair: 'Two flaps glued together' }, help: 'Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. The pieces are made so that both flaps fit; only on pieces you cut by hand can a normal glue tab remain where a second flap does not fit.' }] },
   { id: 'auto', icon: '✂️', title: 'Automatic unfolding', intro: 'How the model is divided into pieces automatically.', items: [
     { k: 'pieceShape', label: 'Shape of the pieces', type: 'select', opts: { large: 'Large (fewest pieces)', compact: 'Compact', vcompact: 'Very compact' }, help: 'Compact pieces have no long arms or ragged edges, so they are easier to fold and glue. They are a bit more pieces.' },
     { k: 'sharpCut', label: 'Cut at sharp folds', type: 'check', help: 'Sharp folds become a cut with a glue tab: easier to build than folding a sharp corner.' },
@@ -976,8 +976,9 @@ function applySetting(k) {
     S.prevCols = nc; updateWorld(); render2D(); fitView(); return;
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
-  if (k === 'tabStyle' && (S.set.tabStyle === 'pair' || (S.tl && S.tl.tabs2))) { S.world = null; refresh(); fitView(); return; }
-  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle', 'cleanFaces', 'scoreMinDeg'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
+  // two flaps need room on both sides of every seam: the pieces are made again
+  if (k === 'tabStyle') { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
+  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'cleanFaces', 'scoreMinDeg'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
 }
 
 // ---------------------------------------------------------------- bestanden
@@ -1491,7 +1492,7 @@ function autoOptions() {
     faceWH = S.faceColor.map(c => lim[keyPaper(c.join(','))] || lim[st.paper]);
     for (const pp of papers) { W = Math.max(W, lim[pp][0]); H = Math.max(H, lim[pp][1]); }
   }
-  return { scale: S.scale, W, H, faceWH, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
+  return { scale: S.scale, W, H, faceWH, tabH: st.tabH, tabAngle: st.tabAngle, minTab: st.minTab / 100, pair: st.tabStyle === 'pair', timeBudget: 5000, tries: 8, mergeTinyColors: !!st.mergeIslands,
     sharpDeg: st.sharpCut ? st.sharpDeg : 0, maxFaces: Math.max(0, Math.round(+st.maxFaces || 0)), minWidth: Math.max(0, +st.minWidth || 0), minSize: Math.max(0, +st.minSize || 0), isoMax: { large: 0, compact: 6, vcompact: 4 }[st.pieceShape] || 0 };
 }
 function warnRecut() {

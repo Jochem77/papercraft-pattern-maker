@@ -579,6 +579,23 @@ function layoutTabs(m, cp, lmm, joined, opts) {
   m.E.forEach((E, e) => { if (E.m && !joined[e]) cut.push(e); });
   cut.sort((a, b) => m.E[b].len - m.E[a].len);
   const steps = tabSteps(opts);
+  // opts.both: also a flap on the other side of every cut edge (for "two flaps glued together":
+  // both flaps fold inwards and are glued onto each other). It is placed right after the tab of the
+  // same edge (the same order as the check while unfolding, which keeps room for both). Only where
+  // it fits; otherwise tabs2[e] stays empty and the edge gets a normal glue tab.
+  const tabs2 = opts.both ? new Array(nE).fill(null) : null;
+  const hullOf = opts.both ? pieces.map(p => { const pts = []; for (const f of p.faces) pts.push(...lmm[f]); return hull(pts); }) : null;
+  const flap = (e, f2) => {
+    const pid = pieceOf[f2];
+    for (const sc of steps) {
+      const r = tryTab(e, f2, sc);
+      if (!r.ok) continue;
+      const H = hull(hullOf[pid].concat(r.t.poly));
+      if (opts.W) { const [Wp, Hp] = whFor(opts, pieces[pid].faces); if (!fitsRect(H, Wp, Hp)) continue; }
+      tabs2[e] = { poly: r.t.poly, h: r.t.h, f: f2 }; placed[pid].push({ poly: r.t.poly, bb: r.bb, e, f: f2 }); hullOf[pid] = H;
+      return;
+    }
+  };
   for (const e of cut) {
     const E = m.E[e];
     const user = opts.tabUser ? opts.tabUser[e] : -1;
@@ -604,29 +621,12 @@ function layoutTabs(m, cp, lmm, joined, opts) {
     tabFace[e] = f;
     tabs[e] = { poly: res.t.poly, h: res.t.h, bad: false };
     placed[pieceOf[f]].push({ poly: res.t.poly, bb: res.bb, e, f });
-  }
-  for (const c of conflicts) tabs[c.e].bad = true;
-  // opts.both: also a flap on the other side of every cut edge (for "two flaps glued together":
-  // both flaps fold inwards and are glued onto each other). Only where it fits; otherwise tabs2[e] stays empty
-  // and the edge gets a normal glue tab. The unfolding itself does not change.
-  let tabs2 = null;
-  if (opts.both) {
-    tabs2 = new Array(nE).fill(null);
-    // outline of every piece so far (faces + tabs), to check that a flap keeps it on the paper
-    const hullOf = pieces.map(p => { const pts = []; for (const f of p.faces) pts.push(...lmm[f]); for (const o of placed[p.id]) pts.push(...o.poly); return hull(pts); });
-    for (const e of cut) {
-      if (!tabs[e] || tabs[e].bad) continue;
-      const E = m.E[e], f2 = E.f[0] === tabFace[e] ? E.f[1] : E.f[0], pid = pieceOf[f2];
-      for (const sc of steps) {
-        const r = tryTab(e, f2, sc);
-        if (!r.ok) continue;
-        const H = hull(hullOf[pid].concat(r.t.poly));
-        if (opts.W) { const [Wp, Hp] = whFor(opts, pieces[pid].faces); if (!fitsRect(H, Wp, Hp)) continue; }
-        tabs2[e] = { poly: r.t.poly, h: r.t.h, f: f2 }; placed[pid].push({ poly: r.t.poly, bb: r.bb, e, f: f2 }); hullOf[pid] = H;
-        break;
-      }
+    if (opts.both) {
+      hullOf[pieceOf[f]] = hull(hullOf[pieceOf[f]].concat(res.t.poly));
+      if (!conflicts.length || conflicts[conflicts.length - 1].e !== e) flap(e, E.f[1 - side]);
     }
   }
+  for (const c of conflicts) tabs[c.e].bad = true;
   return { tabFace, tabs, conflicts, tabs2 };
 }
 
@@ -770,8 +770,26 @@ function validateComponent(m, joined, seed, o, info) {
   for (const f of faces) for (const e of m.FE[f]) if (m.E[e].m && !joined[e]) cut.add(e);
   const placed = [], pts = [];
   for (const f of faces) for (const p of L.get(f)) pts.push(p);
+  const tabOn = (e, f, hits) => { // a tab or flap on side f of edge e, the largest that fits
+    for (const sc of tabSteps(o)) {
+      const i = m.FE[f].indexOf(e), P = L.get(f);
+      const t = tabPoly(P[i], P[(i + 1) % 3], o.tabH * sc[0], sc[1]), bb = bbox(t.poly);
+      let hit = -1;
+      for (const it of items) { if (it.f !== f && bbOver(bb, it.bb) && polyOverlap(t.poly, L.get(it.f))) { hit = it.f; break; } }
+      if (hit < 0) for (const q of placed) { if (bbOver(bb, q.bb) && polyOverlap(t.poly, q.poly)) { hit = q.f; break; } }
+      if (hit < 0) { placed.push({ poly: t.poly, bb, f }); for (const p of t.poly) pts.push(p); return true; }
+      hits.push(f, hit);
+    }
+    return false;
+  };
   for (const e of [...cut].sort((a, b) => m.E[b].len - m.E[a].len)) {
     const E = m.E[e], sides = E.f.filter(f => local.has(f));
+    // o.pair (two flaps glued together): every side of the seam in this piece needs its own flap
+    if (o.pair) {
+      const hits = [];
+      for (const f of sides) if (!tabOn(e, f, hits)) { if (!info) return false; ok = false; for (const h of hits) conf.add(h); }
+      continue;
+    }
     let done = false;
     const hits = [];
     for (const sc of tabSteps(o)) {

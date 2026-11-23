@@ -26,7 +26,7 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
 
    **Effen (foto)karton?** Zet onder **Instellingen → Printen & PDF** de optie **Bedrukte kant is de binnenkant** aan. De nummers en lijnen komen dan aan de binnenkant en de buitenkant blijft schoon. Je print en snijdt nog steeds aan één kant; de stukken liggen gespiegeld op het papier. Kies bij **Snijplotter → Vouwlijnen** dan **Rillen + perforeren**: vouwen die naar de bedrukte kant toe buigen worden geperforeerd (groen in de SVG), de andere gerild (blauw).
 
-   **Niets op de vlakken printen?** Kies onder **Instellingen → Plakstrookjes → Soort** voor *Twee flapjes op elkaar plakken*. Beide stukken krijgen dan langs de naad een flapje met hetzelfde randnummer. Vouw beide flapjes naar binnen en plak ze op elkaar. Zet ook *Nummers alleen op stroken* aan: dan staat er niets op de vlakken en kun je de buitenkant rillen. Waar geen tweede flapje past, komt een gewone plakstrook.
+   **Niets op de vlakken printen?** Kies onder **Instellingen → Plakstrookjes → Soort** voor *Twee flapjes op elkaar plakken*. Beide stukken krijgen dan langs de naad een flapje met hetzelfde randnummer. Vouw beide flapjes naar binnen en plak ze op elkaar. Zet ook *Nummers alleen op stroken* aan: dan staat er niets op de vlakken en kun je de buitenkant rillen. Bij automatisch uitvouwen worden de stukken zo gemaakt dat beide flapjes passen.
 3. Pas het aan met het gereedschap in de werkbalk (beweeg de muis over een pictogram voor de naam):
    - **Selecteren** (S): een stuk aanklikken, verslepen, draaien met Q/E (met Shift 90°).
    - **Knippen** (K): klik bij een rand om te knippen of te verbinden. Shift+klik zet de plakstrook aan de andere kant; Alt+klik knipt ook randen binnen een plat vlak.
