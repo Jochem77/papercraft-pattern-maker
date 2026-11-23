@@ -184,22 +184,30 @@ function parseModel(buf, name) {
 }
 
 // ---------------------------------------------------------------- mesh
-function buildMesh(pos, flatDeg) {
+// Welds the corners of a triangle soup: corners closer than diag · 1e-6 become one vertex.
+// vid(o) gives the vertex of the corner at pos[o..o+2]; V fills up while vid is called.
+function weldSoup(pos) {
   const n = Math.floor(pos.length / 9);
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i < n * 9; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
   const size = [mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]];
   const diag = len(size) || 1, q = diag * 1e-6;
-  const V = [], vmap = new Map(), F = [], src = [], fset = new Set();
-  const vid = (x, y, z) => {
-    const k = Math.round(x / q) + ',' + Math.round(y / q) + ',' + Math.round(z / q);
+  const V = [], vmap = new Map();
+  const vid = o => {
+    const k = Math.round(pos[o] / q) + ',' + Math.round(pos[o + 1] / q) + ',' + Math.round(pos[o + 2] / q);
     let i = vmap.get(k);
-    if (i === undefined) { i = V.length; V.push([x, y, z]); vmap.set(k, i); }
+    if (i === undefined) { i = V.length; V.push([pos[o], pos[o + 1], pos[o + 2]]); vmap.set(k, i); }
     return i;
   };
+  return { n, mn, mx, size, diag, V, vid };
+}
+
+function buildMesh(pos, flatDeg) {
+  const { n, mn, mx, size, diag, V, vid } = weldSoup(pos);
+  const F = [], src = [], fset = new Set();
   for (let t = 0; t < n; t++) {
     const o = t * 9;
-    const a = vid(pos[o], pos[o + 1], pos[o + 2]), b = vid(pos[o + 3], pos[o + 4], pos[o + 5]), c = vid(pos[o + 6], pos[o + 7], pos[o + 8]);
+    const a = vid(o), b = vid(o + 3), c = vid(o + 6);
     if (a === b || b === c || a === c) continue;
     if (len(cross(sub(V[b], V[a]), sub(V[c], V[a]))) < diag * diag * 1e-10) continue;
     const key = [a, b, c].sort((x, y) => x - y).join(',');
@@ -400,18 +408,6 @@ function fitsRect(H, W, Hh) {
   return false;
 }
 
-// Beste draaiing om in W×H te passen (kleinste omhullende rechthoek, liefst liggend).
-function bestRotation(pts, W, Hh) {
-  const H = hull(pts);
-  let best = null;
-  for (let deg = 0; deg < 180; deg += 1) {
-    const b = rotBox(H, deg);
-    const fits = b.w <= W + 1e-9 && b.h <= Hh + 1e-9;
-    const score = (fits ? 0 : 1e12) + b.w * b.h * (1 + 0.02 * (b.h > b.w ? 1 : 0));
-    if (!best || score < best.score) best = { deg, score, fits, ...b };
-  }
-  return best;
-}
 
 // Trapeziumvormige plakstrook op rand a→b (vlak ligt rechts van a→b, strook links).
 function tabPoly(a, b, h, angDeg) {
@@ -506,59 +502,6 @@ function autoUnfold(m, opts) {
   return joined;
 }
 
-// Groeistrategie: laat één stuk tegelijk zo groot mogelijk groeien vanaf een startvlak.
-function growUnfold(m, opts) {
-  const { F, E, V } = m, nF = F.length;
-  const maxW = opts.maxW, maxH = opts.maxH, avoid = opts.avoid;
-  const w = opts.weights || E.map(e => (e.flat ? -10 : 0) + e.bend - 0.05 * e.len / m.diag);
-  const joined = new Uint8Array(E.length);
-  const assigned = new Int32Array(nF).fill(-1);
-  const area = F.map(f => len(cross(sub(V[f[1]], V[f[0]]), sub(V[f[2]], V[f[0]]))));
-  const seeds = F.map((_, i) => i).sort(opts.seedOrder || ((a, b) => area[b] - area[a]));
-  const tol = m.diag * 1e-5;
-  let pid = 0;
-  for (const seed of seeds) {
-    if (assigned[seed] >= 0) continue;
-    const local = new Map(), fbb = new Map(), faces = [seed];
-    const T0 = F[seed];
-    local.set(seed, placeTriangle(m, seed, 0, [0, 0], [len(sub(V[T0[1]], V[T0[0]])), 0]));
-    fbb.set(seed, bbox(local.get(seed)));
-    assigned[seed] = pid;
-    let H = local.get(seed).map(p => p.slice());
-    const front = [];
-    const pushEdges = f => { for (let i = 0; i < 3; i++) { const e = m.FE[f][i]; if (E[e].m && !(avoid && avoid[e]) && assigned[otherFace(E[e], f)] < 0) front.push({ e, f, i }); } };
-    pushEdges(seed);
-    while (front.length) {
-      let bi = 0;
-      for (let k = 1; k < front.length; k++) if (w[front[k].e] < w[front[bi].e]) bi = k;
-      const { e, f, i } = front[bi];
-      front[bi] = front[front.length - 1]; front.pop();
-      const g = otherFace(E[e], f);
-      if (assigned[g] >= 0) continue;
-      const a = F[f][i], b = F[f][(i + 1) % 3], G = F[g];
-      let j = 0; while (!(G[j] === b && G[(j + 1) % 3] === a)) j++;
-      const lf = local.get(f);
-      const tri = placeTriangle(m, g, j, lf[(i + 1) % 3], lf[i]);
-      const Hn = hull(H.concat([tri[(j + 2) % 3]]));
-      if (!fitsRect(Hn, maxW, maxH)) continue;
-      const bb = bbox(tri);
-      let hit = false;
-      for (const q of faces) if (bbOver(bb, fbb.get(q)) && polyOverlap(tri, local.get(q))) { hit = true; break; }
-      if (hit) continue;
-      local.set(g, tri); fbb.set(g, bb); faces.push(g); assigned[g] = pid; H = Hn;
-      joined[e] = 1;
-      pushEdges(g);
-    }
-    // samenvallende randen binnen het stuk ook verbinden
-    for (const f of faces) for (const e of m.FE[f]) {
-      const Ee = E[e]; if (!Ee.m || joined[e]) continue;
-      const g = otherFace(Ee, f); if (assigned[g] !== pid) continue;
-      if (Ee.v.every(v => dist2(local.get(f)[F[f].indexOf(v)], local.get(g)[F[g].indexOf(v)]) < tol)) joined[e] = 1;
-    }
-    pid++;
-  }
-  return joined;
-}
 
 // ---------------------------------------------------------------- plakstrookjes & controle
 // Probeervolgorde voor een strook: [hoogtefactor, hoek]. Als laatste redmiddel een spitsere strook.
@@ -820,21 +763,22 @@ function validateComponent(m, joined, seed, o, info) {
   for (const f of faces) for (const e of m.FE[f]) if (m.E[e].m && !joined[e]) cut.add(e);
   const placed = [], pts = [];
   for (const f of faces) for (const p of L.get(f)) pts.push(p);
-  const tabOn = (e, f, hits, A, B) => { // a tab or flap on side f of edge e (or its part A→B), the largest that fits
-    for (const sc of tabSteps(o)) {
-      const i = m.FE[f].indexOf(e), P = L.get(f);
-      const t = tabPoly(A || P[i], B || P[(i + 1) % 3], o.tabH * sc[0], sc[1]), bb = bbox(t.poly);
-      let hit = -1;
-      for (const it of items) { if (it.f !== f && bbOver(bb, it.bb) && polyOverlap(t.poly, L.get(it.f))) { hit = it.f; break; } }
-      if (hit < 0) for (const q of placed) { if (bbOver(bb, q.bb) && polyOverlap(t.poly, q.poly)) { hit = q.f; break; } }
-      if (hit < 0) { placed.push({ poly: t.poly, bb, f }); for (const p of t.poly) pts.push(p); return true; }
-      hits.push(f, hit);
-    }
+  // one try: a tab of size sc on side f of edge e (or its part A→B); placed when it hits nothing,
+  // else the face it hits is noted in hits
+  const tryPlace = (e, f, sc, hits, A, B) => {
+    const i = m.FE[f].indexOf(e), P = L.get(f);
+    const t = tabPoly(A || P[i], B || P[(i + 1) % 3], o.tabH * sc[0], sc[1]), bb = bbox(t.poly);
+    let hit = -1;
+    for (const it of items) { if (it.f !== f && bbOver(bb, it.bb) && polyOverlap(t.poly, L.get(it.f))) { hit = it.f; break; } }
+    if (hit < 0) for (const q of placed) { if (bbOver(bb, q.bb) && polyOverlap(t.poly, q.poly)) { hit = q.f; break; } }
+    if (hit < 0) { placed.push({ poly: t.poly, bb, f }); for (const p of t.poly) pts.push(p); return true; }
+    hits.push(f, hit);
     return false;
   };
+  // a tab or flap on side f, the largest that fits
+  const tabOn = (e, f, hits, A, B) => tabSteps(o).some(sc => tryPlace(e, f, sc, hits, A, B));
   for (const e of [...cut].sort((a, b) => m.E[b].len - m.E[a].len)) {
     const E = m.E[e], sides = E.f.filter(f => local.has(f));
-    // o.pair (two flaps glued together): every side of the seam in this piece needs its own flap
     // o.zip: a long seam gets alternating tabs on both sides (a zipper); every part needs room
     if (o.zip) {
       let zs = null; const hits = [];
@@ -846,26 +790,16 @@ function validateComponent(m, joined, seed, o, info) {
       }
       if (zs) continue;
     }
+    // o.pair (two flaps glued together): every side of the seam in this piece needs its own flap
     // (only seams of at least o.pairMin mm; shorter seams get one normal tab, as below)
     if (o.pair && E.len * o.scale >= (o.pairMin || 0)) {
       const hits = [];
       for (const f of sides) if (!tabOn(e, f, hits)) { if (!info) return false; ok = false; for (const h of hits) conf.add(h); }
       continue;
     }
-    let done = false;
+    // one normal tab: full size on either side first, then smaller
     const hits = [];
-    for (const sc of tabSteps(o)) {
-      for (const f of sides) {
-        const i = m.FE[f].indexOf(e), P = L.get(f);
-        const t = tabPoly(P[i], P[(i + 1) % 3], o.tabH * sc[0], sc[1]), bb = bbox(t.poly);
-        let hit = -1;
-        for (const it of items) { if (it.f !== f && bbOver(bb, it.bb) && polyOverlap(t.poly, L.get(it.f))) { hit = it.f; break; } }
-        if (hit < 0) for (const q of placed) { if (bbOver(bb, q.bb) && polyOverlap(t.poly, q.poly)) { hit = q.f; break; } }
-        if (hit < 0) { placed.push({ poly: t.poly, bb, f }); for (const p of t.poly) pts.push(p); done = true; break; }
-        hits.push(f, hit);
-      }
-      if (done) break;
-    }
+    const done = tabSteps(o).some(sc => sides.some(f => tryPlace(e, f, sc, hits)));
     if (!done && sides.length === 2) { if (!info) return false; ok = false; for (const h of hits) conf.add(h); }
   }
   { const [Wp, Hp] = whFor(o, faces); if (!fitsRect(hull(pts), Wp, Hp)) { if (info) info.tooBig = true; return false; } }
@@ -1410,18 +1344,8 @@ function nestLayout(items, W, H, o) {
 // (projects saved before it get the same mesh back).
 function cleanMesh(pos, minH, key, tol, ver) {
   ver = ver || 2;
-  const n = Math.floor(pos.length / 9);
-  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < n * 9; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
-  const diag = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1, qq = diag * 1e-6;
+  const { n, diag, V, vid } = weldSoup(pos);
   tol = tol == null ? minH * 0.25 : tol;
-  const V = [], vmap = new Map();
-  const vid = o => {
-    const k = Math.round(pos[o] / qq) + ',' + Math.round(pos[o + 1] / qq) + ',' + Math.round(pos[o + 2] / qq);
-    let i = vmap.get(k);
-    if (i === undefined) { i = V.length; V.push([pos[o], pos[o + 1], pos[o + 2]]); vmap.set(k, i); }
-    return i;
-  };
   const T = [], src = [];
   for (let t = 0; t < n; t++) {
     const a = vid(t * 9), b = vid(t * 9 + 3), c = vid(t * 9 + 6);
@@ -1562,24 +1486,14 @@ function cleanMesh(pos, minH, key, tol, ver) {
 // open edges are kept in place. Returns { pos, src }: src[t] is the original triangle that output
 // triangle t comes from (to carry over materials and texture coordinates). Deterministic.
 function simplifyMesh(pos, target, key) {
-  const n = Math.floor(pos.length / 9);
-  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < n * 9; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
-  const diag = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1, qq = diag * 1e-6;
-  // weld vertices (same tolerance as buildMesh)
-  const X = [], Y = [], Z = [], vmap = new Map();
-  const vid = o => {
-    const k = Math.round(pos[o] / qq) + ',' + Math.round(pos[o + 1] / qq) + ',' + Math.round(pos[o + 2] / qq);
-    let i = vmap.get(k);
-    if (i === undefined) { i = X.length; X.push(pos[o]); Y.push(pos[o + 1]); Z.push(pos[o + 2]); vmap.set(k, i); }
-    return i;
-  };
+  const { n, diag, V: W, vid } = weldSoup(pos); // same welding as buildMesh
   const F = [], fsrc = [];
   for (let t = 0; t < n; t++) {
     const a = vid(t * 9), b = vid(t * 9 + 3), c = vid(t * 9 + 6);
     if (a === b || b === c || a === c) continue;
     F.push(a, b, c); fsrc.push(t);
   }
+  const X = W.map(v => v[0]), Y = W.map(v => v[1]), Z = W.map(v => v[2]);
   const nf0 = fsrc.length, nv = X.length;
   const alive = new Uint8Array(nf0).fill(1);
   const vf = Array.from({ length: nv }, () => []);
@@ -1728,9 +1642,9 @@ function simplifyMesh(pos, target, key) {
 
 const api = {
   nestLayout, simplifyMesh, cleanMesh,
-  toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
+  toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, edgeOrders,
   parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny, pieceShape,
-  bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, zipSegs, autoUnfold, layoutTabs,
+  bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, tabPoly, zipSegs, autoUnfold, layoutTabs,
   selfOverlaps, treePath, splitEdge, otherFace, hslToRgb, validateComponent, remergePass, repair, scoreJoined
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Core = api;
