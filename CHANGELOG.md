@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta.5] - 2026-11-23
+
 ### Added
 
 - **Two flaps glued together** (*Settings → Glue tabs → Type*): both pieces get a flap along each seam; fold both inwards and glue them onto each other. The edge number is printed on both flaps, so with *Numbers only on tabs* nothing is printed on the faces and the outside can be scored. Automatic unfolding keeps room for both flaps on every seam; switching the type unfolds again. *Two flaps from seam length* gives shorter seams one normal glue tab instead (stronger, less bulk in narrow parts).
 - **Zipper** (*Settings → Glue tabs → Type*): on long seams the glue tabs alternate between the two pieces, each part glued under the other face, so the seam is held from both sides. *Zipper part length* sets the length of each part; seams shorter than twice that get one normal glue tab.
+
+### Changed
+
+- **Source code split up** (for developers): `src/app.html` now holds only the page; the styling is in `src/style.css` and the program in `src/js/`, one file per subject. `node tools/build.js` still builds the one self-contained `index.html`. Unused code and translations were removed.
+
+### Fixed
+
+- **Piece number over the edge number**: on a glue tab, the piece number now keeps 1 mm clear of the edge number on that tab (with *Zipper* it avoided the number of another part of the seam). Where it does not fit on any tab, it goes on a face.
 
 ### Removed
 
@@ -128,7 +138,8 @@ First public beta. Please report problems via [GitHub Issues](https://github.com
 - OBJ files are assumed to be Y-up.
 - The Silhouette registration marks have been checked against Silhouette Studio's default settings only.
 
-[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.4...HEAD
+[Unreleased]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.5...HEAD
+[1.0.0-beta.5]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.4...v1.0.0-beta.5
 [1.0.0-beta.4]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.3...v1.0.0-beta.4
 [1.0.0-beta.3]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.2...v1.0.0-beta.3
 [1.0.0-beta.2]: https://github.com/Jochem77/papercraft-pattern-maker/compare/v1.0.0-beta.1...v1.0.0-beta.2
