@@ -2157,7 +2157,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', finBarbs: false, finBarbW: 0.8, finSlitW: 0.4, finSlitPlay: 0.6, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
+  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', finBarbs: false, finBarbW: 0.8, finSlitW: 0, finRelief: 1, finSlitPlay: 0.6, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
 };
 const S = {
@@ -2312,7 +2312,9 @@ const NL = {
   'Barb size': 'Grootte weerhaakjes',
   'How far each barb sticks out past the slit, on both sides. Smaller barbs go through the slit more easily but hold less. Thick card: about 0.5–1 mm.': 'Hoe ver elk weerhaakje aan beide kanten buiten de sneet uitsteekt. Kleinere haakjes gaan makkelijker door de sneet maar houden minder vast. Dik karton: ongeveer 0,5–1 mm.',
   'Slit width': 'Breedte sneetje', 'Extra slit length': 'Sneetje langer dan flapje',
-  'The slit is cut as a narrow slot this wide, so the tab slides through without forcing the card apart. Use about the thickness of your card (photo card 0.3–0.4 mm). 0 = a single cut.': 'Het sneetje wordt als een smal gleufje van deze breedte uitgesneden, zodat het flapje erdoor schuift zonder het karton uit elkaar te duwen. Neem ongeveer de dikte van je karton (fotokarton 0,3–0,4 mm). 0 = één snijlijn.',
+  'The slit is cut as a narrow slot this wide (about the thickness of your card, photo card 0.3–0.4 mm). Such a thin strip does not always come out cleanly; relief cuts usually work better. 0 = a single cut.': 'Het sneetje wordt als een smal gleufje van deze breedte uitgesneden (ongeveer de dikte van je karton, fotokarton 0,3–0,4 mm). Zo’n dun reepje komt niet altijd netjes los; haakse sneetjes werken meestal beter. 0 = één snijlijn.',
+  'Relief cuts at the slit': 'Haakse sneetjes bij het sneetje',
+  'A short cut at both ends of the slit, square to it and only into the flap (hidden inside). The bit of flap between them bends away, so the tab goes in more easily, also with thick card. 0 = off.': 'Een kort sneetje aan beide uiteinden van het sneetje, haaks erop en alleen in het randje (aan de binnenkant, onzichtbaar). Het stukje randje ertussen buigt weg, zodat het flapje makkelijker insteekt, ook bij dik karton. 0 = uit.',
   'How much longer the slit is than the tab is wide. More = easier to insert, but the edges can shift a little.': 'Hoeveel langer het sneetje is dan het flapje breed is. Meer = makkelijker insteken, maar de randen kunnen iets verschuiven.',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
@@ -2438,7 +2440,8 @@ const TABS = [
     { k: 'tabAngle', label: 'Angle', type: 'number', unit: '°', min: 15, max: 85, step: 1, help: 'Slope of the sides; smaller = more pointed.' },
     { k: 'minTab', label: 'Minimum width', type: 'number', unit: '%', min: 30, max: 100, step: 5, help: 'Where space is tight, a tab may become this much narrower (or more pointed).' },
     { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', fin: 'Tab and flap (no glue, hidden)' }, help: 'Without glue. Tab and flap: the other piece gets a flap with a slit on its fold line; the tab goes through the slit, so tab and flap cross at the seam and keep the edges in line (with barbs they also hook it tight). Nothing shows on the outside. Best with a cutting plotter and a tab width of 8 mm or more. Where there is no room, a normal glue tab is used.' },
-    { k: 'finSlitW', label: 'Slit width', type: 'number', unit: 'mm', min: 0, max: 2, step: 0.05, dep: 'tabStyle=fin', help: 'The slit is cut as a narrow slot this wide, so the tab slides through without forcing the card apart. Use about the thickness of your card (photo card 0.3–0.4 mm). 0 = a single cut.' },
+    { k: 'finRelief', label: 'Relief cuts at the slit', type: 'number', unit: 'mm', min: 0, max: 4, step: 0.1, dep: 'tabStyle=fin', help: 'A short cut at both ends of the slit, square to it and only into the flap (hidden inside). The bit of flap between them bends away, so the tab goes in more easily, also with thick card. 0 = off.' },
+    { k: 'finSlitW', label: 'Slit width', type: 'number', unit: 'mm', min: 0, max: 2, step: 0.05, dep: 'tabStyle=fin', help: 'The slit is cut as a narrow slot this wide (about the thickness of your card, photo card 0.3–0.4 mm). Such a thin strip does not always come out cleanly; relief cuts usually work better. 0 = a single cut.' },
     { k: 'finSlitPlay', label: 'Extra slit length', type: 'number', unit: 'mm', min: 0, max: 3, step: 0.1, dep: 'tabStyle=fin', help: 'How much longer the slit is than the tab is wide. More = easier to insert, but the edges can shift a little.' },
     { k: 'finBarbs', label: 'Barbs on the insert tabs', type: 'check', dep: 'tabStyle=fin', help: 'Off: the tabs are straight with a pointed end and slide easily through the slit; they only keep the edges in line. On: small barbs hook behind the slit and hold the seam, but they are harder to push through.' },
     { k: 'finBarbW', label: 'Barb size', type: 'number', unit: 'mm', min: 0.2, max: 3, step: 0.1, dep: 'finBarbs', help: 'How far each barb sticks out past the slit, on both sides. Smaller barbs go through the slit more easily but hold less. Thick card: about 0.5–1 mm.' }] },
@@ -2645,7 +2648,7 @@ function applySetting(k) {
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
   if (k === 'tabStyle' && (S.set.tabStyle === 'fin' || (S.tl && S.tl.tabs2))) { S.world = null; refresh(); fitView(); return; }
-  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle', 'cleanFaces', 'scoreMinDeg', 'finBarbs', 'finBarbW', 'finSlitW', 'finSlitPlay'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
+  if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'tabStyle', 'cleanFaces', 'scoreMinDeg', 'finBarbs', 'finBarbW', 'finSlitW', 'finSlitPlay', 'finRelief'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
 }
 
 // ---------------------------------------------------------------- bestanden
@@ -3342,6 +3345,9 @@ function gluelessTab(f, i, t) {
   const xmin = y => y * dTop / h, xmax = y => L - y * dTop / h;
   // the flap on the other side runs the other way along the edge
   const A2 = t2.poly[0], B2 = t2.poly[3], u2 = [(B2[0] - A2[0]) / L, (B2[1] - A2[1]) / L];
+  const v2 = [t2.poly[1][0] - A2[0], t2.poly[1][1] - A2[1]], d2 = v2[0] * u2[0] + v2[1] * u2[1];
+  const w2 = [v2[0] - u2[0] * d2, v2[1] - u2[1] * d2], h2 = Math.hypot(w2[0], w2[1]);
+  const into = h2 > 0 ? [w2[0] / h2, w2[1] / h2] : null; // from the fold line into the flap
   const onFold = x => [A2[0] + u2[0] * (L - x), A2[1] + u2[1] * (L - x)];
   const barbs = !!S.set.finBarbs;
   const neckTop = barbs ? FIN_NECK : 0;
@@ -3385,7 +3391,7 @@ function gluelessTab(f, i, t) {
   }
   shape.push(b);
   const mid = teeth[Math.floor((teeth.length - 1) / 2)];
-  return { shape, folds, heads: teeth.map(T => ({ cx: T.cx, wh: T.wh, wt: T.wt })), frame: { a, u, o, h, neckTop }, slits: teeth.map(T => ({ g, e, pts: T.slit })), label: { pos: Q(mid.cx, (neckTop + h) / 2), max: Math.min((h - neckTop) * 0.7, mid.wh * 0.45) } };
+  return { shape, folds, heads: teeth.map(T => ({ cx: T.cx, wh: T.wh, wt: T.wt })), frame: { a, u, o, h, neckTop }, slits: teeth.map(T => ({ g, e, pts: T.slit, into, h2 })), label: { pos: Q(mid.cx, (neckTop + h) / 2), max: Math.min((h - neckTop) * 0.7, mid.wh * 0.45) } };
 }
 
 function buildDrawings() {
@@ -3488,6 +3494,10 @@ function buildDrawings() {
       const c = [[A[0] + nx, A[1] + ny], [B[0] + nx, B[1] + ny], [B[0] - nx, B[1] - ny], [A[0] - nx, A[1] - ny]];
       for (let k = 0; k < 4; k++) d.cuts.push({ a: c[k], b: c[(k + 1) % 4], slit: true });
     } else d.cuts.push({ a: A, b: B, slit: true });
+    // relief cuts: a short cut at both ends of the slit, square to it and only into the flap (which is
+    // hidden inside), so the strip of flap between them bends away and makes room for the card
+    const rl = Math.min(Math.max(0, +S.set.finRelief || 0), sl.h2 ? sl.h2 * 0.6 : 0);
+    if (rl > 0.1 && sl.into) for (const E of [A, B]) d.cuts.push({ a: E, b: [E[0] + sl.into[0] * rl, E[1] + sl.into[1] * rl], slit: true });
     // the edge number on this side moves inwards, past the slit
   }
   // piece numbers keep clear of the slits
