@@ -261,3 +261,22 @@ test('maximum faces per piece', () => {
   const cb = C.computePieces(b, jb);
   assert.ok(cb.pieces.length === 1 || cb.pieces.every(p => C.pieceFaceCount(b, jb, p.faces) <= 6));
 });
+
+test('clean up thin faces: fewer slivers, same shape, still closed', () => {
+  // a cube whose top face has an extra vertex very close to one of its edges: thin triangles
+  const V = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1], [0.5, 0.002, 1]];
+  const tris = [[0, 2, 1], [0, 3, 2], [0, 1, 5], [0, 5, 4], [1, 2, 6], [1, 6, 5], [2, 3, 7], [2, 7, 6], [3, 0, 4], [3, 4, 7],
+    [4, 5, 8], [5, 6, 8], [6, 7, 8], [7, 4, 8]]; // top face as a fan around vertex 8 (near edge 4-5)
+  const pos = Float32Array.from(tris.flatMap(t => t.flatMap(i => V[i])));
+  const thin = m => m.F.filter(f => { const [a, b, c] = f.map(v => m.V[v]); const A2 = Math.hypot(...[0, 1, 2].map(k => (b[(k + 1) % 3] - a[(k + 1) % 3]) * (c[(k + 2) % 3] - a[(k + 2) % 3]) - (b[(k + 2) % 3] - a[(k + 2) % 3]) * (c[(k + 1) % 3] - a[(k + 1) % 3])));
+    const L = Math.max(...[[a, b], [b, c], [c, a]].map(([p, q]) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]))); return A2 / L < 0.05; }).length;
+  const before = C.buildMesh(pos);
+  assert.ok(thin(before) > 0);
+  const r = C.cleanMesh(pos, 0.05);
+  const after = C.buildMesh(r.pos);
+  assert.equal(thin(after), 0, 'thin faces left');
+  assert.equal(after.E.filter(e => !e.m).length, 0, 'not closed');
+  assert.ok(Math.abs(signedVolume(after) - 1) < 1e-3, 'shape changed');
+  assert.equal(r.src.length, after.F.length);
+  assert.deepEqual(C.cleanMesh(pos, 0.05).pos, r.pos); // deterministic
+});

@@ -33,6 +33,7 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
    - **Kleuren** (B): vlakken een andere kleur geven. **Mini-vlakjes herstellen** lost losse foutjes in de kleuren op. Per kleur kies je ook het papier (A4 of A3): die kleur krijgt dan eigen pagina’s in die maat, en een eigen PDF.
 4. Onder **Instellingen** kies je onder meer:
    - de afmetingen van het model;
+   - het opschonen van heel dunne of kleine vlakken in het model (standaard alles dunner dan 2 mm);
    - het papier (A4 of A3) en de marges;
    - de indeling op de pagina’s: *Normaal*, *Zo weinig mogelijk papier* (zoekt een paar seconden naar de indeling met de minste pagina’s) of *Buren bij elkaar* (stukken die aan elkaar vastzitten liggen naast elkaar);
    - de plakstrookjes;

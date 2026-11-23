@@ -1300,6 +1300,135 @@ function nestLayout(items, W, H, o) {
   return { placements: out, pages: pages.length, lastFill: pages.length ? pages[pages.length - 1].bottom / GH : 0 };
 }
 
+// ---------------------------------------------------------------- clean up thin and tiny faces
+// Removes faces that are thinner than minH (model units; the smallest height of the triangle) by
+//  - collapsing their shortest edge when that edge is short (needles and tiny faces), or
+//  - flipping their longest edge with the neighbouring face (flat "caps" with an angle near 180°),
+// but only where the shape hardly changes (at most tol away from the original surface), no face
+// turns over, the surface stays manifold, and borders between different keys (colours) and open
+// edges stay where they are. Returns { pos, src, collapsed, flipped }; src[t] is the original
+// triangle of output triangle t (to carry over colours). Deterministic.
+function cleanMesh(pos, minH, key, tol) {
+  const n = Math.floor(pos.length / 9);
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n * 9; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
+  const diag = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1, qq = diag * 1e-6;
+  tol = tol == null ? minH * 0.25 : tol;
+  const V = [], vmap = new Map();
+  const vid = o => {
+    const k = Math.round(pos[o] / qq) + ',' + Math.round(pos[o + 1] / qq) + ',' + Math.round(pos[o + 2] / qq);
+    let i = vmap.get(k);
+    if (i === undefined) { i = V.length; V.push([pos[o], pos[o + 1], pos[o + 2]]); vmap.set(k, i); }
+    return i;
+  };
+  const T = [], src = [];
+  for (let t = 0; t < n; t++) {
+    const a = vid(t * 9), b = vid(t * 9 + 3), c = vid(t * 9 + 6);
+    if (a === b || b === c || a === c) continue;
+    T.push([a, b, c]); src.push(t);
+  }
+  const alive = T.map(() => true), K = src.map(t => (key ? key[t] : 0));
+  const vf = V.map(() => new Set());
+  T.forEach((tr, f) => tr.forEach(v => vf[v].add(f)));
+  const nrm = (a, b, c) => { const u = sub(b, a), w = sub(c, a); return cross(u, w); };
+  const facesOfEdge = (a, b) => { const out = []; for (const f of vf[a]) if (alive[f] && T[f].includes(b)) out.push(f); return out; };
+  // vertex on a border: an edge with one face (open), more than two faces, or faces of different keys
+  const borderEdge = (a, b) => { const fs = facesOfEdge(a, b); return fs.length !== 2 || K[fs[0]] !== K[fs[1]]; };
+  const borderVertex = v => { for (const f of vf[v]) if (alive[f]) for (const w of T[f]) if (w !== v && borderEdge(v, w)) return true; return false; };
+  const neighbours = v => { const s = new Set(); for (const f of vf[v]) if (alive[f]) for (const w of T[f]) if (w !== v) s.add(w); return s; };
+  const distToPlane = (p, f) => { const [a, b, c] = T[f].map(i => V[i]), N = nrm(a, b, c), l = len(N) || 1; return Math.abs(dot(sub(p, a), N)) / l; };
+  // move vertex v to p (collapse edge v-u): check and do it
+  const tryCollapse = (v, u, p) => {
+    const nu = neighbours(u), nv = neighbours(v);
+    const common = [...nv].filter(w => nu.has(w));
+    if (common.length !== 2) return false;                // link condition (keeps the surface manifold)
+    const shared = facesOfEdge(u, v);
+    if (shared.length !== 2) return false;
+    for (const f of vf[v]) {
+      if (!alive[f] || shared.includes(f)) continue;
+      const old = T[f].map(i => V[i]), now = T[f].map(i => (i === v ? p : V[i]));
+      const n0 = nrm(...old), n1 = nrm(...now), l0 = len(n0), l1 = len(n1);
+      if (l1 < 1e-12 * diag * diag || dot(n0, n1) < 0.5 * l0 * l1) return false; // no flips, no degenerate faces
+    }
+    // shape: the moved vertex stays close to the original faces around it
+    for (const f of vf[v]) if (alive[f] && distToPlane(p, f) > tol) return false;
+    for (const f of shared) alive[f] = false;
+    for (const f of [...vf[v]]) { if (!alive[f]) continue; T[f] = T[f].map(i => (i === v ? u : i)); vf[u].add(f); }
+    vf[v].clear(); V[u] = p;
+    return true;
+  };
+  const tryFlip = (f, a, b) => { // flip edge a-b of face f with its neighbour
+    const fs = facesOfEdge(a, b); if (fs.length !== 2) return false;
+    const g = fs[0] === f ? fs[1] : fs[0];
+    if (K[f] !== K[g]) return false;
+    const c = T[f].find(i => i !== a && i !== b), d = T[g].find(i => i !== a && i !== b);
+    if (c === d || neighbours(c).has(d)) return false;     // the new edge exists already
+    // keep the orientation of f: f = (a, b, c) in this order (rotated)
+    const i = T[f].indexOf(a), ordered = T[f][(i + 1) % 3] === b;
+    const [p, q] = ordered ? [a, b] : [b, a];
+    const t1 = [p, d, c], t2 = [d, q, c];
+    const n0 = nrm(...T[f].map(k => V[k]));
+    for (const t of [t1, t2]) { const nn = nrm(...t.map(k => V[k])), l = len(nn); if (l < 1e-12 * diag * diag || dot(nn, n0) < 0.5 * l * len(n0)) return false; }
+    // shape: the four points lie (nearly) in one plane
+    if (distToPlane(V[d], f) > tol) return false;
+    const minHeight = t => { const [x, y, z] = t.map(k => V[k]), A = len(nrm(x, y, z)), L = Math.max(len(sub(y, x)), len(sub(z, y)), len(sub(x, z))); return A / L; };
+    const before = Math.min(minHeight(T[f]), minHeight(T[g])), after = Math.min(minHeight(t1), minHeight(t2));
+    if (after <= before * 1.2) return false;               // only when it really gets better
+    for (const k of T[f]) vf[k].delete(f); for (const k of T[g]) vf[k].delete(g);
+    T[f] = t1; T[g] = t2;
+    for (const k of t1) vf[k].add(f); for (const k of t2) vf[k].add(g);
+    return true;
+  };
+  let collapsed = 0, flipped = 0;
+  for (let round = 0; round < 6; round++) {
+    let changed = 0;
+    const bad = [];
+    T.forEach((tr, f) => {
+      if (!alive[f]) return;
+      const [a, b, c] = tr.map(i => V[i]), A2 = len(nrm(a, b, c));
+      const L = [len(sub(b, a)), len(sub(c, b)), len(sub(a, c))], Lmax = Math.max(...L);
+      const h = A2 / Lmax;
+      if (h < minH) bad.push({ f, h });
+    });
+    bad.sort((x, y) => x.h - y.h);
+    for (const { f } of bad) {
+      if (!alive[f]) continue;
+      const tr = T[f], P = tr.map(i => V[i]);
+      const E = [[tr[0], tr[1], len(sub(P[1], P[0]))], [tr[1], tr[2], len(sub(P[2], P[1]))], [tr[2], tr[0], len(sub(P[0], P[2]))]].sort((x, y) => x[2] - y[2]);
+      const A2 = len(nrm(...P)), h = A2 / E[2][2];
+      if (h >= minH) continue;
+      let ok = false;
+      // short edge (needle or tiny face): collapse it, keeping border vertices in place
+      if (E[0][2] < minH * 2) {
+        const [u, v] = E[0], bu = borderVertex(u), bv = borderVertex(v);
+        const onBorder = borderEdge(u, v);
+        const mid = [(V[u][0] + V[v][0]) / 2, (V[u][1] + V[v][1]) / 2, (V[u][2] + V[v][2]) / 2];
+        if (!bu && !bv) ok = tryCollapse(v, u, mid);
+        else if (!bv) ok = tryCollapse(v, u, V[u].slice());
+        else if (!bu) ok = tryCollapse(u, v, V[v].slice());
+        else if (onBorder) ok = tryCollapse(v, u, V[u].slice()) || tryCollapse(u, v, V[v].slice());
+        if (ok) collapsed++;
+      }
+      // flat cap: flip the longest edge
+      if (!ok && !borderEdge(E[2][0], E[2][1])) { ok = tryFlip(f, E[2][0], E[2][1]); if (ok) flipped++; }
+      // or move the tip of the cap onto one end of its long edge (where the faces around it stay in place)
+      if (!ok) {
+        const [a, b] = E[2], tip = tr.find(i => i !== a && i !== b);
+        if (!borderVertex(tip)) {
+          const da = len(sub(V[tip], V[a])), db = len(sub(V[tip], V[b]));
+          ok = da <= db ? (tryCollapse(tip, a, V[a].slice()) || tryCollapse(tip, b, V[b].slice())) : (tryCollapse(tip, b, V[b].slice()) || tryCollapse(tip, a, V[a].slice()));
+          if (ok) collapsed++;
+        }
+      }
+      if (ok) changed++;
+    }
+    if (!changed) break;
+  }
+  const out = [], osrc = [];
+  T.forEach((tr, f) => { if (!alive[f]) return; for (const i of tr) out.push(V[i][0], V[i][1], V[i][2]); osrc.push(src[f]); });
+  return { pos: Float32Array.from(out), src: osrc, collapsed, flipped };
+}
+
 // ---------------------------------------------------------------- simplify (quadric edge collapse)
 // Reduces a triangle soup to about `target` triangles while keeping the shape (Garland & Heckbert).
 // key (optional, one value per triangle, e.g. the material): borders between different keys and
@@ -1471,7 +1600,7 @@ function simplifyMesh(pos, target, key) {
 }
 
 const api = {
-  nestLayout, simplifyMesh,
+  nestLayout, simplifyMesh, cleanMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
   parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny, pieceShape,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,

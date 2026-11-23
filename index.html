@@ -1510,6 +1510,135 @@ function nestLayout(items, W, H, o) {
   return { placements: out, pages: pages.length, lastFill: pages.length ? pages[pages.length - 1].bottom / GH : 0 };
 }
 
+// ---------------------------------------------------------------- clean up thin and tiny faces
+// Removes faces that are thinner than minH (model units; the smallest height of the triangle) by
+//  - collapsing their shortest edge when that edge is short (needles and tiny faces), or
+//  - flipping their longest edge with the neighbouring face (flat "caps" with an angle near 180°),
+// but only where the shape hardly changes (at most tol away from the original surface), no face
+// turns over, the surface stays manifold, and borders between different keys (colours) and open
+// edges stay where they are. Returns { pos, src, collapsed, flipped }; src[t] is the original
+// triangle of output triangle t (to carry over colours). Deterministic.
+function cleanMesh(pos, minH, key, tol) {
+  const n = Math.floor(pos.length / 9);
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n * 9; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
+  const diag = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1, qq = diag * 1e-6;
+  tol = tol == null ? minH * 0.25 : tol;
+  const V = [], vmap = new Map();
+  const vid = o => {
+    const k = Math.round(pos[o] / qq) + ',' + Math.round(pos[o + 1] / qq) + ',' + Math.round(pos[o + 2] / qq);
+    let i = vmap.get(k);
+    if (i === undefined) { i = V.length; V.push([pos[o], pos[o + 1], pos[o + 2]]); vmap.set(k, i); }
+    return i;
+  };
+  const T = [], src = [];
+  for (let t = 0; t < n; t++) {
+    const a = vid(t * 9), b = vid(t * 9 + 3), c = vid(t * 9 + 6);
+    if (a === b || b === c || a === c) continue;
+    T.push([a, b, c]); src.push(t);
+  }
+  const alive = T.map(() => true), K = src.map(t => (key ? key[t] : 0));
+  const vf = V.map(() => new Set());
+  T.forEach((tr, f) => tr.forEach(v => vf[v].add(f)));
+  const nrm = (a, b, c) => { const u = sub(b, a), w = sub(c, a); return cross(u, w); };
+  const facesOfEdge = (a, b) => { const out = []; for (const f of vf[a]) if (alive[f] && T[f].includes(b)) out.push(f); return out; };
+  // vertex on a border: an edge with one face (open), more than two faces, or faces of different keys
+  const borderEdge = (a, b) => { const fs = facesOfEdge(a, b); return fs.length !== 2 || K[fs[0]] !== K[fs[1]]; };
+  const borderVertex = v => { for (const f of vf[v]) if (alive[f]) for (const w of T[f]) if (w !== v && borderEdge(v, w)) return true; return false; };
+  const neighbours = v => { const s = new Set(); for (const f of vf[v]) if (alive[f]) for (const w of T[f]) if (w !== v) s.add(w); return s; };
+  const distToPlane = (p, f) => { const [a, b, c] = T[f].map(i => V[i]), N = nrm(a, b, c), l = len(N) || 1; return Math.abs(dot(sub(p, a), N)) / l; };
+  // move vertex v to p (collapse edge v-u): check and do it
+  const tryCollapse = (v, u, p) => {
+    const nu = neighbours(u), nv = neighbours(v);
+    const common = [...nv].filter(w => nu.has(w));
+    if (common.length !== 2) return false;                // link condition (keeps the surface manifold)
+    const shared = facesOfEdge(u, v);
+    if (shared.length !== 2) return false;
+    for (const f of vf[v]) {
+      if (!alive[f] || shared.includes(f)) continue;
+      const old = T[f].map(i => V[i]), now = T[f].map(i => (i === v ? p : V[i]));
+      const n0 = nrm(...old), n1 = nrm(...now), l0 = len(n0), l1 = len(n1);
+      if (l1 < 1e-12 * diag * diag || dot(n0, n1) < 0.5 * l0 * l1) return false; // no flips, no degenerate faces
+    }
+    // shape: the moved vertex stays close to the original faces around it
+    for (const f of vf[v]) if (alive[f] && distToPlane(p, f) > tol) return false;
+    for (const f of shared) alive[f] = false;
+    for (const f of [...vf[v]]) { if (!alive[f]) continue; T[f] = T[f].map(i => (i === v ? u : i)); vf[u].add(f); }
+    vf[v].clear(); V[u] = p;
+    return true;
+  };
+  const tryFlip = (f, a, b) => { // flip edge a-b of face f with its neighbour
+    const fs = facesOfEdge(a, b); if (fs.length !== 2) return false;
+    const g = fs[0] === f ? fs[1] : fs[0];
+    if (K[f] !== K[g]) return false;
+    const c = T[f].find(i => i !== a && i !== b), d = T[g].find(i => i !== a && i !== b);
+    if (c === d || neighbours(c).has(d)) return false;     // the new edge exists already
+    // keep the orientation of f: f = (a, b, c) in this order (rotated)
+    const i = T[f].indexOf(a), ordered = T[f][(i + 1) % 3] === b;
+    const [p, q] = ordered ? [a, b] : [b, a];
+    const t1 = [p, d, c], t2 = [d, q, c];
+    const n0 = nrm(...T[f].map(k => V[k]));
+    for (const t of [t1, t2]) { const nn = nrm(...t.map(k => V[k])), l = len(nn); if (l < 1e-12 * diag * diag || dot(nn, n0) < 0.5 * l * len(n0)) return false; }
+    // shape: the four points lie (nearly) in one plane
+    if (distToPlane(V[d], f) > tol) return false;
+    const minHeight = t => { const [x, y, z] = t.map(k => V[k]), A = len(nrm(x, y, z)), L = Math.max(len(sub(y, x)), len(sub(z, y)), len(sub(x, z))); return A / L; };
+    const before = Math.min(minHeight(T[f]), minHeight(T[g])), after = Math.min(minHeight(t1), minHeight(t2));
+    if (after <= before * 1.2) return false;               // only when it really gets better
+    for (const k of T[f]) vf[k].delete(f); for (const k of T[g]) vf[k].delete(g);
+    T[f] = t1; T[g] = t2;
+    for (const k of t1) vf[k].add(f); for (const k of t2) vf[k].add(g);
+    return true;
+  };
+  let collapsed = 0, flipped = 0;
+  for (let round = 0; round < 6; round++) {
+    let changed = 0;
+    const bad = [];
+    T.forEach((tr, f) => {
+      if (!alive[f]) return;
+      const [a, b, c] = tr.map(i => V[i]), A2 = len(nrm(a, b, c));
+      const L = [len(sub(b, a)), len(sub(c, b)), len(sub(a, c))], Lmax = Math.max(...L);
+      const h = A2 / Lmax;
+      if (h < minH) bad.push({ f, h });
+    });
+    bad.sort((x, y) => x.h - y.h);
+    for (const { f } of bad) {
+      if (!alive[f]) continue;
+      const tr = T[f], P = tr.map(i => V[i]);
+      const E = [[tr[0], tr[1], len(sub(P[1], P[0]))], [tr[1], tr[2], len(sub(P[2], P[1]))], [tr[2], tr[0], len(sub(P[0], P[2]))]].sort((x, y) => x[2] - y[2]);
+      const A2 = len(nrm(...P)), h = A2 / E[2][2];
+      if (h >= minH) continue;
+      let ok = false;
+      // short edge (needle or tiny face): collapse it, keeping border vertices in place
+      if (E[0][2] < minH * 2) {
+        const [u, v] = E[0], bu = borderVertex(u), bv = borderVertex(v);
+        const onBorder = borderEdge(u, v);
+        const mid = [(V[u][0] + V[v][0]) / 2, (V[u][1] + V[v][1]) / 2, (V[u][2] + V[v][2]) / 2];
+        if (!bu && !bv) ok = tryCollapse(v, u, mid);
+        else if (!bv) ok = tryCollapse(v, u, V[u].slice());
+        else if (!bu) ok = tryCollapse(u, v, V[v].slice());
+        else if (onBorder) ok = tryCollapse(v, u, V[u].slice()) || tryCollapse(u, v, V[v].slice());
+        if (ok) collapsed++;
+      }
+      // flat cap: flip the longest edge
+      if (!ok && !borderEdge(E[2][0], E[2][1])) { ok = tryFlip(f, E[2][0], E[2][1]); if (ok) flipped++; }
+      // or move the tip of the cap onto one end of its long edge (where the faces around it stay in place)
+      if (!ok) {
+        const [a, b] = E[2], tip = tr.find(i => i !== a && i !== b);
+        if (!borderVertex(tip)) {
+          const da = len(sub(V[tip], V[a])), db = len(sub(V[tip], V[b]));
+          ok = da <= db ? (tryCollapse(tip, a, V[a].slice()) || tryCollapse(tip, b, V[b].slice())) : (tryCollapse(tip, b, V[b].slice()) || tryCollapse(tip, a, V[a].slice()));
+          if (ok) collapsed++;
+        }
+      }
+      if (ok) changed++;
+    }
+    if (!changed) break;
+  }
+  const out = [], osrc = [];
+  T.forEach((tr, f) => { if (!alive[f]) return; for (const i of tr) out.push(V[i][0], V[i][1], V[i][2]); osrc.push(src[f]); });
+  return { pos: Float32Array.from(out), src: osrc, collapsed, flipped };
+}
+
 // ---------------------------------------------------------------- simplify (quadric edge collapse)
 // Reduces a triangle soup to about `target` triangles while keeping the shape (Garland & Heckbert).
 // key (optional, one value per triangle, e.g. the material): borders between different keys and
@@ -1681,7 +1810,7 @@ function simplifyMesh(pos, target, key) {
 }
 
 const api = {
-  nestLayout, simplifyMesh,
+  nestLayout, simplifyMesh, cleanMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, growUnfold, edgeOrders,
   parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny, pieceShape,
   bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, bestRotation, tabPoly, autoUnfold, layoutTabs,
@@ -1957,7 +2086,7 @@ const $ = id => document.getElementById(id);
 const PAPER = { A4: [210, 297], A3: [297, 420] };
 const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
-  size: 150, flatDeg: 1, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
+  size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
   tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
@@ -2098,6 +2227,10 @@ const NL = {
   'Avoid pieces narrower than': 'Stukken smaller dan dit vermijden', 'Avoid pieces smaller than': 'Stukken kleiner dan dit vermijden',
   'Narrow strips (average width) are joined to a neighbouring piece where possible. 0 = off.': 'Smalle stroken (gemiddelde breedte) worden waar mogelijk aan een buurstuk vastgemaakt. 0 = uit.',
   'Very small pieces are joined to a neighbouring piece where possible. 0 = off.': 'Heel kleine stukken worden waar mogelijk aan een buurstuk vastgemaakt. 0 = uit.',
+  'Clean up faces thinner than': 'Vlakken dunner dan dit opschonen',
+  'Very thin or tiny triangles in the model are removed by joining their shortest edge or turning an edge, where the shape hardly changes. Colour borders stay. 0 = off. Changing this starts the unfolding again.': 'Heel dunne of kleine driehoeken in het model worden weggewerkt door hun kortste rand samen te voegen of een rand om te klappen, waar de vorm nauwelijks verandert. Kleurgrenzen blijven. 0 = uit. Wijzigen begint het uitvouwen opnieuw.',
+  '{n} thin faces cleaned up ({c} edges joined, {f} turned).': '{n} dunne vlakken opgeschoond ({c} randen samengevoegd, {f} omgeklapt).',
+  ' · {n} thin faces cleaned up': ' · {n} dunne vlakken opgeschoond',
   'File': 'Bestand', 'Edit': 'Bewerken', 'Model': 'Model', 'View': 'Beeld', 'Help': 'Help',
   'Open model…': 'Model openen…', 'Open project…': 'Project openen…', 'Save project': 'Project opslaan', 'Export': 'Exporteren',
   'Download PDF (true size)': 'PDF downloaden (ware grootte)', 'Cutting plotter files (SVG)': 'Snijplotter-bestanden (SVG)', 'Settings…': 'Instellingen…',
@@ -2206,6 +2339,7 @@ const TABS = [
     { k: 'lang', label: 'Language', type: 'select', raw: true, opts: { en: 'English', nl: 'Nederlands' } }] },
   { id: 'model', icon: '📐', title: 'Model', intro: 'Size of the finished paper model.', items: [
     { type: 'dims' },
+    { k: 'thinMM', label: 'Clean up faces thinner than', type: 'number', unit: 'mm', min: 0, max: 20, step: 0.5, help: 'Very thin or tiny triangles in the model are removed by joining their shortest edge or turning an edge, where the shape hardly changes. Colour borders stay. 0 = off. Changing this starts the unfolding again.' },
     { k: 'flatDeg', label: 'Flat below angle', type: 'number', unit: '°', min: 0, max: 20, step: 0.5, help: 'Edges with a smaller angle count as flat: no fold line, and preferably not cut.' }] },
   { id: 'paper', icon: '📄', title: 'Paper & layout', intro: 'Paper size and how the pieces are distributed over the pages.', items: [
     { section: 'Paper' },
@@ -2403,6 +2537,12 @@ function applySetting(k) {
   if (!S.mesh) return;
   const autoAgain = !S.manual;
   if (k === 'size') { S.scale = S.set.size / S.maxDim; S.world = null; if (autoAgain) return runAuto(); refresh(); fitView(); return; }
+  if (k === 'thinMM') {
+    if (!S.full) return;
+    S.cleanTol = cleanTolFor(S.simplify ? simplifiedData(S.full, S.simplify) : S.full);
+    loadModel(modelData(), S.name, null).then(() => { if (S.cleanInfo) toast(tr('{n} thin faces cleaned up ({c} edges joined, {f} turned).', { n: S.cleanInfo.removed + S.cleanInfo.flipped, c: S.cleanInfo.collapsed, f: S.cleanInfo.flipped }), 4000); });
+    return;
+  }
   if (k === 'flatDeg') { Core.setFlat(S.mesh, S.set.flatDeg); refresh(); return; }
   if (k === 'lang') { applyLanguage(); return; }
   if (k === 'printedInside') { rebuildMeshSide(); return; }
@@ -2445,7 +2585,33 @@ async function loadModelBuffer(buf, name, proj) {
   if (!proj && n > SIMPLIFY_ABOVE) target = await askSimplify(full, n, 0, false);
   S.fileB64 = bufToB64(buf);
   S.full = full; S.fullCount = n; S.simplify = target;
-  await loadModel(target ? simplifiedData(full, target) : full, name, proj);
+  // a project brings its own clean-up tolerance (model units), so the same mesh comes back
+  S.cleanTol = proj ? (proj.cleanTol || 0) : cleanTolFor(target ? simplifiedData(full, target) : full);
+  await loadModel(modelData(), name, proj);
+}
+// ---------------------------------------------------------------- dunne vlakken opschonen
+// The model as it is unfolded: the original, optionally simplified, then cleaned up.
+function modelData() {
+  const d = S.simplify ? simplifiedData(S.full, S.simplify) : S.full;
+  return cleanedData(d, S.cleanTol);
+}
+// "Clean up faces thinner than" (mm) in model units, for the model size that is set now.
+function cleanTolFor(d) {
+  const mm = +S.set.thinMM || 0; if (!(mm > 0)) return 0;
+  const mnx = [Infinity, Infinity, Infinity], mxx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < d.pos.length; i += 3) for (let k = 0; k < 3; k++) { const v = d.pos[i + k]; if (v < mnx[k]) mnx[k] = v; if (v > mxx[k]) mxx[k] = v; }
+  const maxDim = Math.max(mxx[0] - mnx[0], mxx[1] - mnx[1], mxx[2] - mnx[2]) || 1;
+  return mm * maxDim / S.set.size;
+}
+function cleanedData(d, tol) {
+  S.cleanInfo = null;
+  if (!(tol > 0)) return d;
+  const r = Core.cleanMesh(d.pos, tol, d.faceMat || null);
+  S.cleanInfo = { removed: d.pos.length / 9 - r.pos.length / 9, collapsed: r.collapsed, flipped: r.flipped };
+  const out = { ...d, pos: r.pos };
+  if (d.faceMat) out.faceMat = Array.from(r.src, t => d.faceMat[t]);
+  if (d.faceUV) { const uv = new Float32Array(r.src.length * 2); r.src.forEach((t, i) => { uv[2 * i] = d.faceUV[2 * t]; uv[2 * i + 1] = d.faceUV[2 * t + 1]; }); out.faceUV = uv; }
+  return out;
 }
 
 // ---------------------------------------------------------------- vereenvoudigen (modellen met veel driehoeken)
@@ -2529,17 +2695,19 @@ async function openSimplify() {
   const v = await askSimplify(S.full, S.fullCount, S.simplify, true);
   if (v === null) return;
   S.simplify = v;
-  await loadModel(v ? simplifiedData(S.full, v) : S.full, S.name, null);
+  S.cleanTol = cleanTolFor(v ? simplifiedData(S.full, v) : S.full);
+  await loadModel(modelData(), S.name, null);
 }
 async function loadProject(p) {
   if (!p || p.app !== 'papercraft') throw new Error(tr('Not a papercraft project'));
   S.set = { ...DEF, ...p.set };
   if (!['glue', 'fin'].includes(S.set.tabStyle)) S.set.tabStyle = 'glue'; // removed options
+  if (p.set && p.set.thinMM === undefined) S.set.thinMM = 0; // older project: its mesh was not cleaned up
   syncSide(); saveSettings();
   await loadModelBuffer(b64ToBuf(p.file), p.name, p);
 }
 function projectData() {
-  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, colorPaper: S.colorPaper || {}, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
+  const p = { app: 'papercraft', v: 1, appVersion: APP_VERSION, name: S.name, file: S.fileB64, simplify: S.simplify || 0, cleanTol: S.cleanTol || 0, colorPaper: S.colorPaper || {}, set: S.set, joined: Array.from(S.joined), tabUser: Array.from(S.tabUser), world: Array.from(S.world || []), manual: S.manual,
     paint: S.faceMat && S.faceColor ? { materials: S.model.materials, faceMat: S.faceMat, faceColor: S.faceColor } : null };
   return p;
 }
@@ -3372,7 +3540,7 @@ function pageInfo() {
 function updateStatus() {
   const m = S.mesh, ps = S.cp.pieces;
   const cuts = m.E.filter((e, i) => e.m && !S.joined[i]).length;
-  $('stats').textContent = tr('{f} triangles · {n} {pieces} · {p} {pages} · {c} glue edges · scale 1:{s} (model unit → mm)', { f: m.F.length, n: ps.length, pieces: pl(ps.length, 'piece', 'pieces'), p: S.pageCount, pages: pl(S.pageCount, 'page', 'pages'), c: cuts, s: fx(1 / S.scale) }) + (S.simplify ? tr(' · simplified from {n} triangles', { n: fmtN(S.fullCount) }) : '');
+  $('stats').textContent = tr('{f} triangles · {n} {pieces} · {p} {pages} · {c} glue edges · scale 1:{s} (model unit → mm)', { f: m.F.length, n: ps.length, pieces: pl(ps.length, 'piece', 'pieces'), p: S.pageCount, pages: pl(S.pageCount, 'page', 'pages'), c: cuts, s: fx(1 / S.scale) }) + (S.simplify ? tr(' · simplified from {n} triangles', { n: fmtN(S.fullCount) }) : '') + (S.cleanInfo && S.cleanInfo.removed + S.cleanInfo.flipped ? tr(' · {n} thin faces cleaned up', { n: S.cleanInfo.removed + S.cleanInfo.flipped }) : '');
   const w = [];
   const self = ps.filter(p => p.d.faces.some(f => f.bad)).length;
   const tabs = S.tl.conflicts.length;

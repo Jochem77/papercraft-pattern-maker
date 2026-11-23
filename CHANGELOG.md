@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Clean up thin faces** (*Settings → Model → Clean up faces thinner than*, default 2 mm): very thin or tiny triangles in the model are removed before unfolding, by joining their shortest edge or turning an edge, only where the shape hardly changes; colour borders and open edges stay. In the test model: 4 instead of 41 faces thinner than 2 mm, volume change 0.01 %. Projects keep their mesh (the tolerance is saved; older projects are not cleaned up).
+
 - **Avoid narrow and small pieces** (*Settings → Automatic unfolding*, default 8 mm average width and 25 mm size): such pieces are joined to the neighbour they share the longest border with, or take over a branch of it, when that stays valid. A narrow strip between sharp folds may join across one of them (colour borders stay cut). In the test project: 5 instead of 16 strips narrower than 8 mm.
 
 - **Paper per color** (colors panel, next to every color: *Paper: standard / A4 / A3*): with *Pages per color* (switched on automatically), each color gets pages in its own paper size, and automatic unfolding makes its pieces fit that paper. **A separate PDF per material** (one ZIP when there are several), also in the cutting plotter ZIP; the SVG of each page has its own paper size and registration marks. The choice is saved in the project.
