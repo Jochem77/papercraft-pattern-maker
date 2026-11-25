@@ -23,7 +23,8 @@ const TABS = [
     { k: 'minTab', label: 'Minimum width', type: 'number', unit: '%', min: 30, max: 100, step: 5, help: 'Where space is tight, a tab may become this much narrower (or more pointed).' },
     { k: 'tabStyle', label: 'Type', type: 'select', opts: { glue: 'With glue', pair: 'Two flaps glued together', zip: 'Zipper (alternating tabs)' }, help: 'Zipper: on long seams the tabs alternate between the two pieces, each part glued under the other face. Short seams get one normal glue tab. Two flaps glued together: both pieces get a flap along the seam. Fold both flaps inwards and glue them onto each other. The edge number is printed on both flaps, so nothing has to be printed on the faces and the outside can be scored. The pieces are made so that both flaps fit; only on pieces you cut by hand can a normal glue tab remain where a second flap does not fit.' },
     { k: 'pairMin', label: 'Two flaps from seam length', type: 'number', unit: 'mm', min: 0, max: 100, step: 1, dep: 'tabStyle=pair', help: 'Seams shorter than this get one normal glue tab instead of two flaps: stronger, and less bulk inside narrow parts. 0 = two flaps on every seam.' },
-    { k: 'zipSeg', label: 'Zipper part length', type: 'number', unit: 'mm', min: 6, max: 100, step: 1, dep: 'tabStyle=zip', help: 'Length of each alternating tab. Seams of at least twice this length become a zipper; shorter seams get one normal glue tab.' }] },
+    { k: 'zipMax', label: 'Zipper: longest part', type: 'number', unit: 'mm', min: 6, max: 200, step: 1, dep: 'tabStyle=zip', help: 'A seam is divided into equal parts as long as possible, but not longer than this.' },
+    { k: 'zipSeg', label: 'Zipper: shortest part', type: 'number', unit: 'mm', min: 6, max: 200, step: 1, dep: 'tabStyle=zip', help: 'Parts are never shorter than this. A seam shorter than twice this length gets one normal glue tab.' }] },
   { id: 'auto', icon: '✂️', title: 'Automatic unfolding', intro: 'How the model is divided into pieces automatically.', items: [
     { k: 'pieceShape', label: 'Shape of the pieces', type: 'select', opts: { large: 'Large (fewest pieces)', compact: 'Compact', vcompact: 'Very compact' }, help: 'Compact pieces have no long arms or ragged edges, so they are easier to fold and glue. They are a bit more pieces.' },
     { k: 'sharpCut', label: 'Cut at sharp folds', type: 'check', help: 'Sharp folds become a cut with a glue tab: easier to build than folding a sharp corner.' },
@@ -169,7 +170,7 @@ function drawPreviews(live) {
       <path d="M${X(0) + 22} ${Y(0)} A 22 22 0 0 0 ${X(0) + 22 * Math.cos(ang * Math.PI / 180)} ${Y(0) - 22 * Math.sin(ang * Math.PI / 180)}" fill="none" stroke="#b45309"/>
       <text x="${X(L * 0.45)}" y="${Y(-10)}" font-size="15" fill="#475569" text-anchor="middle">${tr('face')}</text>
       <text x="${X(L / 2)}" y="${Y(hh / 2) + 4}" font-size="14" fill="#475569" text-anchor="middle">${tr(st.tabStyle === 'pair' ? 'flap (on both pieces)' : st.tabStyle === 'zip' ? 'tab (alternating)' : 'glue tab')}</text>
-      ${st.tabStyle === 'zip' ? `<text x="${X(0)}" y="${Hh - 6}" font-size="14" fill="#2563eb">${esc(tr('Seams of at least {n} mm: zipper, parts of {m} mm', { n: fx(2 * Math.max(6, +st.zipSeg || 15)), m: fx(Math.max(6, +st.zipSeg || 15)) }))}</text>` : ''}${st.tabStyle === 'pair' ? `<text x="${X(0)}" y="${Hh - 6}" font-size="14" fill="#2563eb">${esc(+st.pairMin > 0 ? tr('Seams shorter than {n} mm: one glue tab', { n: fx(+st.pairMin) }) : tr('Every seam: two flaps'))}</text>` : ''}
+      ${st.tabStyle === 'zip' ? (() => { const mx = Math.max(6, +st.zipMax || 20), mn = Math.min(mx, Math.max(6, +st.zipSeg || 10)); return `<text x="${X(0)}" y="${Hh - 6}" font-size="14" fill="#2563eb">${esc(tr('Seams of at least {n} mm: zipper, parts of {a}–{b} mm', { n: fx(2 * mn), a: fx(mn), b: fx(mx) }))}</text>`; })() : ''}${st.tabStyle === 'pair' ? `<text x="${X(0)}" y="${Hh - 6}" font-size="14" fill="#2563eb">${esc(+st.pairMin > 0 ? tr('Seams shorter than {n} mm: one glue tab', { n: fx(+st.pairMin) }) : tr('Every seam: two flaps'))}</text>` : ''}
     </svg>`;
   }
   const pf = $('prev-font');
@@ -228,7 +229,7 @@ function applySetting(k) {
   }
   if (k === 'groupColors') { S.world = null; refresh(); fitView(); return; }
   // two flaps need room on both sides of every seam: the pieces are made again
-  if (k === 'tabStyle' || k === 'pairMin' || k === 'zipSeg') { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); if (pairNote()) toast(pairNote().slice(3), 5000); warnRecut(); return; }
+  if (k === 'tabStyle' || k === 'pairMin' || k === 'zipSeg' || k === 'zipMax') { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); if (pairNote()) toast(pairNote().slice(3), 5000); warnRecut(); return; }
   if (['numbers', 'fontSize', 'printColors', 'pieceNums', 'pieceNumSize', 'fontFamily', 'cleanFaces', 'scoreMinDeg'].includes(k)) { buildDrawings(); render2D(); buildPieceLabels3D(); if (k === 'scoreMinDeg') update3D(); return; }
 }
 

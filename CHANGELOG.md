@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Zipper: longest and shortest part** (*Settings → Glue tabs*, default 20 and 10 mm) instead of one part length: a seam is divided into equal parts, as long as possible but not longer than the longest part; when the parts would be shorter than the shortest part (a seam shorter than twice that), the seam gets one normal glue tab. A saved part length is kept as the shortest part.
 - **Selecting a piece in the pattern no longer turns the 3D view**; the piece is only highlighted there. Double-click (or double-tap) the piece to turn the 3D view towards it.
 
 ### Fixed

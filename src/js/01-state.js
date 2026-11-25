@@ -14,7 +14,7 @@ const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
   size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
-  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', pairMin: 0, zipSeg: 15, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
+  tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', pairMin: 0, zipMax: 20, zipSeg: 10, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
 };
 const S = {

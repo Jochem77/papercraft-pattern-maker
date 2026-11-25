@@ -432,13 +432,23 @@ function tabPoly2(a, b, h, angA, angB) {
   return { h, poly: [[a[0], a[1]], [a[0] + ox * h + ux * h * ca, a[1] + oy * h + uy * h * ca], [b[0] + ox * h - ux * h * cb, b[1] + oy * h - uy * h * cb], [b[0], b[1]]] };
 }
 
-// Zipper: a long seam (at least 2 × seg mm) is split into n parts; the tabs alternate between the
-// two faces (part 0 on E.f[0], part 1 on E.f[1], ...), counted from E.v[0] so both sides agree.
+// Zipper: a long seam is split into n equal parts; the tabs alternate between the two faces (part 0
+// on E.f[0], part 1 on E.f[1], ...), counted from E.v[0] so both sides agree.
+// seg = {max, min} (mm): parts as long as possible but at most max, so n = ceil(length / max), at
+// least 2; when the parts would be shorter than min, the seam is no zipper. (A number: the parts are
+// at least that long, n = floor(length / seg), as in older versions.)
 // a, b: the edge in the local coordinates of face f (in face order), lenMm: its length in mm.
 // Returns null for a short seam, else [{a, b, mine}] along a→b.
+function zipParts(lenMm, seg) {
+  if (typeof seg === 'number') return seg > 0 && lenMm >= 2 * seg ? Math.floor(lenMm / seg) : 0;
+  if (!seg || !(seg.max > 0)) return 0;
+  const min = Math.min(seg.min || 0, seg.max), n = Math.max(2, Math.ceil(lenMm / seg.max - 1e-9));
+  return lenMm / n >= min - 1e-9 ? n : 0;
+}
 function zipSegs(m, e, f, a, b, lenMm, seg) {
-  if (!(seg > 0) || lenMm < 2 * seg) return null;
-  const E = m.E[e], n = Math.floor(lenMm / seg), side = E.f.indexOf(f);
+  const n = zipParts(lenMm, seg);
+  if (!n) return null;
+  const E = m.E[e], side = E.f.indexOf(f);
   const i = m.FE[f].indexOf(e), fwd = m.F[f][i] === E.v[0];
   const at = t => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
   const out = [];
@@ -1717,7 +1727,7 @@ const api = {
   nestLayout, simplifyMesh, cleanMesh,
   toMM, pieceOutlinePts, autoPipeline, absorbSmall, tabSteps, edgeOrders,
   parseSTL, parseOBJ, parseGLB, parseModel, buildMesh, setFlat, placeTriangle, computePieces, sharpEdges, pieceFaceCount, growTiny, pieceShape,
-  bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, tabPoly, zipSegs, autoUnfold, layoutTabs,
+  bbox, bbOver, polyOverlap, hull, rotBox, fitsRect, tabPoly, zipSegs, zipParts, autoUnfold, layoutTabs,
   selfOverlaps, treePath, splitEdge, otherFace, hslToRgb, validateComponent, remergePass, repair, scoreJoined
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Core = api;

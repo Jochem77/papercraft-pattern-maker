@@ -301,3 +301,14 @@ test('clean up thin faces: a sliver on a sharp edge along a colour border goes t
   // the old clean-up (projects saved before) leaves the mesh as it was
   assert.ok(minH(C.buildMesh(C.cleanMesh(pos, 0.1, key, undefined, 1).pos)) < 0.05);
 });
+
+test('zipper: equal parts as long as possible up to the maximum, never below the minimum', () => {
+  const s = { max: 20, min: 10 };
+  assert.equal(C.zipParts(19, s), 0, 'shorter than twice the minimum: no zipper');
+  assert.equal(C.zipParts(25, s), 2);
+  assert.equal(C.zipParts(60, s), 3);
+  assert.equal(C.zipParts(61, s), 4);
+  for (let L = 20; L < 300; L += 0.7) { const n = C.zipParts(L, s); assert.ok(n >= 2 && L / n <= 20 + 1e-9 && L / n >= 10 - 1e-9, 'L ' + L); }
+  assert.equal(C.zipParts(25, { max: 20, min: 15 }), 0, 'two parts of 12.5 mm are too short');
+  assert.equal(C.zipParts(31, 15), 2, 'a number keeps the old rule');
+});

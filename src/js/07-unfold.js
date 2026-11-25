@@ -27,7 +27,8 @@ function pieceLimit(paper) {
   return [W, H];
 }
 // zipper part length in mm (0 = no zipper)
-const zipSeg = () => S.set.tabStyle === 'zip' ? Math.max(6, +S.set.zipSeg || 15) : 0;
+// zipper parts: as long as possible up to zipMax, at least zipSeg (mm); null when not a zipper
+const zipSeg = () => { if (S.set.tabStyle !== 'zip') return null; const max = Math.max(6, +S.set.zipMax || 20); return { max, min: Math.min(max, Math.max(6, +S.set.zipSeg || 10)) }; };
 function autoOptions() {
   const st = S.set;
   let [W, H] = pieceLimit(st.paper), faceWH = null;
