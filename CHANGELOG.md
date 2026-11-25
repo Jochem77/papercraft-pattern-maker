@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Glue tabs no longer stick out past the other piece**: a tab is glued under the face on the other side of the seam, and where that face is narrower than the tab, the tab stuck out (in the test snake about 200 of 550 tabs). The tab now goes on the other side when it fits there unchanged; otherwise it gets a steeper angle at the end where that face is narrow, and is made lower where it is short. Faces joined flat to it count as one surface. Also for *Zipper* and *Two flaps glued together*. In the test snake: 5 tabs still reach slightly past a very thin face.
 - **No piece numbers on the outside** with *Numbers only on tabs*: where a piece number did not fit next to the edge number on a tab, it went on a face (in the test snake on most pieces). It now first tries lower on the tab, where it is wider, with the edge number moved to the other end, then a smaller gap and smaller numbers (down to 1 mm). A piece where no tab has room gets no piece number on paper; it still shows in 3D.
 
 ## [1.0.0-beta.5] - 2026-11-23

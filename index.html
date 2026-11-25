@@ -652,6 +652,15 @@ function tabPoly(a, b, h, angDeg) {
   };
 }
 
+// Glue tab with its own angle at each end (a: at a, b: at b), height h; lower when the edge is short.
+function tabPoly2(a, b, h, angA, angB) {
+  let ux = b[0] - a[0], uy = b[1] - a[1];
+  const l = Math.hypot(ux, uy); ux /= l; uy /= l;
+  const ox = -uy, oy = ux, ca = 1 / Math.tan(angA * Math.PI / 180), cb = 1 / Math.tan(angB * Math.PI / 180);
+  if (h * (ca + cb) > 0.9 * l) h = 0.9 * l / (ca + cb);
+  return { h, poly: [[a[0], a[1]], [a[0] + ox * h + ux * h * ca, a[1] + oy * h + uy * h * ca], [b[0] + ox * h - ux * h * cb, b[1] + oy * h - uy * h * cb], [b[0], b[1]]] };
+}
+
 // Zipper: a long seam (at least 2 × seg mm) is split into n parts; the tabs alternate between the
 // two faces (part 0 on E.f[0], part 1 on E.f[1], ...), counted from E.v[0] so both sides agree.
 // a, b: the edge in the local coordinates of face f (in face order), lenMm: its length in mm.
@@ -750,9 +759,70 @@ function layoutTabs(m, cp, lmm, joined, opts) {
   const placed = pieces.map(() => []); // per stuk: {poly, bb, e}
   const conflicts = []; // {e, f, withFace | withTab}
   const facesOf = pieces.map(p => p.faces);
+  // A tab on face f is glued under the face g on the other side of the edge. region(e, f): g and the
+  // faces joined flat to it (they lie in one plane), in the coordinates of f, as if g were unfolded
+  // across the edge. The tab should stay inside that region, or it sticks out past the other piece.
+  const regions = new Map();
+  const region = (e, f) => {
+    const key = e * 2 + m.E[e].f.indexOf(f);
+    if (regions.has(key)) return regions.get(key);
+    const E = m.E[e], g = otherFace(E, f), i = m.FE[f].indexOf(e);
+    const va = m.F[f][i], vb = m.F[f][(i + 1) % 3], Pa = lmm[f][i], Pb = lmm[f][(i + 1) % 3];
+    const Qa = lmm[g][m.F[g].indexOf(va)], Qb = lmm[g][m.F[g].indexOf(vb)];
+    const ang = Math.atan2(Pb[1] - Pa[1], Pb[0] - Pa[0]) - Math.atan2(Qb[1] - Qa[1], Qb[0] - Qa[0]);
+    const c = Math.cos(ang), sn = Math.sin(ang);
+    const T = q => { const x = q[0] - Qa[0], y = q[1] - Qa[1]; return [Pa[0] + c * x - sn * y, Pa[1] + sn * x + c * y]; };
+    const tris = [], seen = new Set([g]), todo = [g];
+    while (todo.length && tris.length < 24) {
+      const x = todo.pop(); tris.push(lmm[x].map(T));
+      for (const ee of m.FE[x]) {
+        const X = m.E[ee]; if (!X.m || !X.flat || !joined[ee]) continue;
+        const y = otherFace(X, x); if (!seen.has(y)) { seen.add(y); todo.push(y); }
+      }
+    }
+    regions.set(key, tris);
+    return tris;
+  };
+  const TOL = 0.1; // mm a tab may reach past the face it is glued under
+  const inTri = (p, t) => {
+    let pos = false, neg = false;
+    for (let k = 0; k < 3; k++) {
+      const a = t[k], b = t[(k + 1) % 3], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const d = ((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / L;
+      if (d > TOL) pos = true; else if (d < -TOL) neg = true;
+    }
+    return !(pos && neg);
+  };
+  const inRegion = (p, tris) => tris.some(t => inTri(p, t));
+  // The tab for edge e on face f (part A-B of the edge for a zipper), height h, angle ang, made to fit
+  // under the face it is glued to: a steeper angle at an end where that face is narrow, and lower
+  // where it is short. full: it did not have to be changed.
+  const fitTab = (e, f, A, B, h, ang) => {
+    const t0 = tabPoly(A, B, h, ang);
+    if (!m.E[e].m) return { ...t0, full: true };
+    const tris = region(e, f);
+    const L = Math.hypot(B[0] - A[0], B[1] - A[1]), u = [(B[0] - A[0]) / L, (B[1] - A[1]) / L], o = [-u[1], u[0]];
+    const angs = [ang]; for (let x = Math.floor((ang - 1) / 5) * 5; x >= 10; x -= 5) if (x < ang) angs.push(x);
+    const cot = x => 1 / Math.tan(x * Math.PI / 180);
+    const cA = (hh, x) => [A[0] + o[0] * hh + u[0] * hh * cot(x), A[1] + o[1] * hh + u[1] * hh * cot(x)];
+    const cB = (hh, x) => [B[0] + o[0] * hh - u[0] * hh * cot(x), B[1] + o[1] * hh - u[1] * hh * cot(x)];
+    const h0 = t0.h;
+    // down to 0.8 mm: a thin face on the other side (a long sliver) only takes a low tab
+    const lerp = (p, q, k) => [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
+    for (let hh = h0; hh >= Math.min(0.8, h0); hh *= 0.85) {
+      const aA = angs.find(x => inRegion(cA(hh, x), tris)), aB = angs.find(x => inRegion(cB(hh, x), tris));
+      if (aA === undefined || aB === undefined || hh * (cot(aA) + cot(aB)) > 0.9 * L) continue;
+      const t = tabPoly2(A, B, hh, aA, aB), q = t.poly;
+      // the region need not be convex (flat faces around a corner): also check along the sides and the top
+      if (![lerp(q[1], q[2], 0.25), lerp(q[1], q[2], 0.5), lerp(q[1], q[2], 0.75), lerp(q[0], q[1], 0.5), lerp(q[3], q[2], 0.5)].every(p => inRegion(p, tris))) continue;
+      return { ...t, full: hh === h0 && aA === ang && aB === ang };
+    }
+    const hMin = Math.min(0.8, h0), aMin = angs[angs.length - 1];
+    return { ...tabPoly2(A, B, hMin, aMin, aMin), full: false };
+  };
   const tryTab = (e, f, st, A, B) => {
     const i = m.FE[f].indexOf(e), P = lmm[f];
-    const t = tabPoly(A || P[i], B || P[(i + 1) % 3], opts.tabH * st[0], st[1]);
+    const t = fitTab(e, f, A || P[i], B || P[(i + 1) % 3], opts.tabH * st[0], st[1]);
     const bb = bbox(t.poly), pid = pieceOf[f];
     // vlakken van het eigen stuk
     for (const g of facesOf[pid]) {
@@ -763,7 +833,7 @@ function layoutTabs(m, cp, lmm, joined, opts) {
       if (!bbOver(bb, o.bb)) continue;
       if (polyOverlap(t.poly, o.poly)) return { ok: false, t, hitTab: o.e, hitFace: o.f };
     }
-    return { ok: true, t, bb };
+    return { ok: true, t, bb, full: t.full };
   };
   // langste randen eerst
   const cut = [];
@@ -823,11 +893,14 @@ function layoutTabs(m, cp, lmm, joined, opts) {
     const user = opts.tabUser ? opts.tabUser[e] : -1;
     const sides = user >= 0 ? [user, 1 - user] : [0, 1];
     let res = null, side = -1, fail = null;
+    // per step both sides: a tab that fits under the other face unchanged goes first (so the tab
+    // moves to the other side rather than getting a steeper angle or getting lower)
     for (const sc of steps) {
       for (const s of (user >= 0 ? [user] : sides)) {
         const r = tryTab(e, E.f[s], sc);
-        if (r.ok) { res = r; side = s; break; }
-        if (!fail) fail = { ...r, f: E.f[s] };
+        if (r.ok && (!res || (r.full && !res.full) || (!r.full && !res.full && r.t.h > res.t.h * 1.05))) { res = r; side = s; }
+        if (!r.ok && !fail) fail = { ...r, f: E.f[s] };
+        if (res && res.full) break;
       }
       if (res) break;
     }
