@@ -61,7 +61,7 @@ function pieceBody(p, mode, opt) {
 }
 
 function pieceNumGeom(p) {
-  const d = p.d; if (!d.numPos || !S.pieceNo) return null;
+  const d = p.d; if (!d.numPos || d.numPos.hidden || !S.pieceNo) return null;
   const n = S.pieceNo[p.id], fs = d.numPos.fs || Math.max(Math.min(1.8, S.set.pieceNumSize), Math.min(S.set.pieceNumSize, d.numPos.inr * 1.25));
   const w = String(n).length * font().k * fs;
   if (d.numPos.pill) return { n, fs, r: (w + fs * PILL_PAD) / 2, pill: { w: w + fs * PILL_PAD, h: fs * PILL_H } };

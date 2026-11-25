@@ -161,10 +161,12 @@ function buildDrawings() {
     d.numPos = choosePieceNumPos(cands, d.labels);
     d.cands = cands;
   }
-  // piece numbers on a tab; the place on the face stays for the 3D view (f, w)
+  // piece numbers on a tab; the place on the face stays for the 3D view (f, w). With "numbers only
+  // on tabs" a piece number never goes on the outside: when no tab has room it is left off the paper.
   if (st.cleanFaces) for (const p of cp.pieces) {
-    const tp = p.d.numPos && tabNumPos(p);
-    if (tp) p.d.numPos = { ...p.d.numPos, x: tp.x, y: tp.y, fs: tp.fs, ang: tp.ang, pill: true, onTab: true };
+    if (!p.d.numPos) continue;
+    const tp = tabNumPos(p);
+    p.d.numPos = tp ? { ...p.d.numPos, x: tp.x, y: tp.y, fs: tp.fs, ang: tp.ang, pill: true, onTab: true } : { ...p.d.numPos, hidden: true };
   }
 }
 
@@ -173,15 +175,21 @@ function buildDrawings() {
 // numbers, so it can be much larger than a circle in the same narrow strip.
 const PILL_H = 1.3, PILL_PAD = 0.7; // pill height = fs * PILL_H, width = text width + fs * PILL_PAD
 const NUM_GAP = 1; // mm free space between the piece number pill and the edge number on the same tab
+// Steps tried when nothing fits: a smaller gap, the edge number on that tab smaller (factor, at
+// least as large as the piece number) and a smaller piece number. A later step is only used when no tab fits an earlier one.
+const NUM_STEPS = [{ gap: NUM_GAP, lab: 1, min: 1.3 }, { gap: 0.6, lab: 0.8, min: 1.2 }, { gap: 0.4, lab: 0.65, min: 1.1 }, { gap: 0.3, lab: 0.5, min: 1 }];
 function tabNumPos(p) {
   const d = p.d, st = S.set, k = font().k, digits = String(S.pieceNo ? S.pieceNo[p.id] : 88).length;
   const pillW = fs => digits * k * fs + fs * PILL_PAD;
   let best = null;
   const offer = (fs, c, ang, score, move) => { if (!best || score > best.score) best = { x: c[0], y: c[1], fs, ang, pill: true, score, move }; };
-  for (const t of d.tabs) {
-    const P0 = t.poly, a = P0[0], b = P0[3], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (!(L > 0)) continue;
+  for (let si = 0; si < NUM_STEPS.length && !best; si++) for (const t of d.tabs) tryTab(t, NUM_STEPS[si]);
+  if (best && best.move) { const l = best.move.lab; l.x = best.move.pos[0]; l.y = best.move.pos[1]; l.fs = best.move.fs; }
+  return best;
+  function tryTab(t, step) {
+    const P0 = t.poly, a = P0[0], b = P0[3], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (!(L > 0)) return;
     const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], dTop = (P0[1][0] - a[0]) * u[0] + (P0[1][1] - a[1]) * u[1];
-    const ov = [P0[1][0] - a[0] - u[0] * dTop, P0[1][1] - a[1] - u[1] * dTop], h = Math.hypot(ov[0], ov[1]); if (!(h > 0)) continue;
+    const ov = [P0[1][0] - a[0] - u[0] * dTop, P0[1][1] - a[1] - u[1] * dTop], h = Math.hypot(ov[0], ov[1]); if (!(h > 0)) return;
     const o = [ov[0] / h, ov[1] / h], ang = Math.atan2(u[1], u[0]) * 180 / Math.PI;
     // the edge number on this tab (a zipper has several tabs of the same edge: take the one on this tab)
     const lab = d.labels.find(l => {
@@ -189,34 +197,40 @@ function tabNumPos(p) {
       const x = (l.x - a[0]) * u[0] + (l.y - a[1]) * u[1], y = (l.x - a[0]) * o[0] + (l.y - a[1]) * o[1];
       return x > -0.01 && x < L + 0.01 && y > 0 && y < h + 0.01;
     });
-    const lw = lab ? String(S.num[lab.e] || 88).length * k * lab.fs / 2 + 0.3 : 0; // half width of the edge number
+    const lfs = lab ? (step.lab < 1 ? Math.max(Math.min(lab.fs, step.min), lab.fs * step.lab) : lab.fs) : 0, G = step.gap;
+    const lw = lab ? String(S.num[lab.e] || 88).length * k * lfs / 2 + 0.3 : 0; // half width of the edge number
     const xmax = yy => L - yy * dTop / h, xmin = yy => yy * dTop / h;
     const at = (x, yy) => [a[0] + u[0] * x + o[0] * yy, a[1] + u[1] * x + o[1] * yy];
     const lx = lab ? (lab.x - a[0]) * u[0] + (lab.y - a[1]) * u[1] : 0, ly = lab ? (lab.x - a[0]) * o[0] + (lab.y - a[1]) * o[1] : 0;
-    for (let fs = Math.min(st.pieceNumSize, (h - 0.6) / PILL_H); fs >= 1.3; fs *= 0.9) {
-      const ph = fs * PILL_H, pw = pillW(fs), y = h / 2;
-      const lo = xmin(y + ph / 2) + pw / 2 + 0.2, hi = xmax(y + ph / 2) - pw / 2 - 0.2;
-      if (hi < lo) continue;
-      // 1. next to the edge number where it is now
+    for (let fs = Math.min(st.pieceNumSize, (h - 0.6) / PILL_H); fs >= step.min; fs *= 0.9) {
+      const ph = fs * PILL_H, pw = pillW(fs);
+      // 1. next to the edge number where it is now; halfway up the tab, or lower where the tab is wider
       let found = null;
-      for (let x = lo; x <= hi + 1e-9; x += 0.25) {
-        if (lab && Math.abs(x - lx) < pw / 2 + lw + NUM_GAP) continue;
-        const sc = lab ? Math.min(Math.abs(x - lx), 50) : -Math.abs(x - L / 2);
-        if (!found || sc > found.sc) found = { x, sc };
+      for (const y of [h / 2, ph / 2 + 0.3]) {
+        const lo = xmin(y + ph / 2) + pw / 2 + 0.2, hi = xmax(y + ph / 2) - pw / 2 - 0.2;
+        for (let x = lo; x <= hi + 1e-9; x += 0.25) {
+          if (lab && Math.abs(x - lx) < pw / 2 + lw + G) continue;
+          const sc = (lab ? Math.min(Math.abs(x - lx), 50) : -Math.abs(x - L / 2)) - (y < h / 2 ? 100 : 0);
+          if (!found || sc > found.sc) found = { x, y, sc };
+        }
       }
-      if (found) { offer(fs, at(found.x, y), ang, fs * 100 + 10, null); break; }
-      // 2. piece number at one end, edge number moved to the other end
+      if (found) { offer(fs, at(found.x, found.y), ang, fs * 100 + 10, lab && lfs !== lab.fs ? { lab, pos: [lab.x, lab.y], fs: lfs } : null); return; }
+      // 2. both numbers side by side low on the tab, near the fold line where it is widest:
+      //    the piece number at one end, the edge number at the other
       if (lab) {
-        const lhi = xmax(ly + lab.fs * 0.5) - lw - 0.2, llo = xmin(ly + lab.fs * 0.5) + lw + 0.2, gap = pw / 2 + NUM_GAP + lw;
-        let mv = null;
-        if (lo + gap <= lhi) mv = { px: lo, lx: Math.max(lo + gap, (lo + pw / 2 + lhi) / 2) };
-        else if (hi - gap >= llo) mv = { px: hi, lx: Math.min(hi - gap, (hi - pw / 2 + llo) / 2) };
-        if (mv) { offer(fs, at(mv.px, y), ang, fs * 100, { lab, pos: at(mv.lx, ly) }); break; }
+        const bh = Math.max(ph, lfs * 1.1), y = bh / 2 + 0.3, top = y + bh / 2;
+        if (top > h - 0.1) continue;
+        const lo = xmin(top) + 0.2, hi = xmax(top) - 0.2;
+        if (hi - lo < pw + G + 2 * lw) continue;
+        const pillLeft = lx >= L / 2; // the edge number stays on its own side
+        const px = pillLeft ? lo + pw / 2 : hi - pw / 2;
+        const free = pillLeft ? [lo + pw + G + lw, hi - lw] : [lo + lw, hi - pw - G - lw];
+        const nx = Math.min(Math.max(lx, free[0]), free[1]);
+        offer(fs, at(px, y), ang, fs * 100, { lab, pos: at(nx, y), fs: lfs });
+        return;
       }
     }
   }
-  if (best && best.move) { best.move.lab.x = best.move.pos[0]; best.move.lab.y = best.move.pos[1]; }
-  return best;
 }
 // rounded rectangle around (cx, cy), length w along angle ang (degrees), height h
 function pillPts(cx, cy, w, h, ang) {

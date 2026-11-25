@@ -46,7 +46,7 @@ const TABS = [
     { k: 'pieceNums', label: 'Show piece numbers', type: 'check', help: 'A number in a circle on every piece, also shown in 3D.' },
     { k: 'pieceNumSize', label: 'Font size', type: 'number', unit: 'mm', min: 2, max: 20, step: 0.5, dep: 'pieceNums' },
     { section: 'Faces' },
-    { k: 'cleanFaces', label: 'Numbers only on tabs', type: 'check', help: 'Piece numbers go on a glue tab or flap, and edge numbers are only printed on the tabs and flaps. The faces stay clean, so the printed side can be the outside of the model (for example to score on the outside). Tip: also switch off Print fold lines.' }] },
+    { k: 'cleanFaces', label: 'Numbers only on tabs', type: 'check', help: 'Piece numbers go on a glue tab or flap (next to its edge number, smaller where the tab is small; a piece where no tab has room gets no piece number on paper), and edge numbers are only printed on the tabs and flaps. The faces stay clean, so the printed side can be the outside of the model (for example to score on the outside). Tip: also switch off Print fold lines.' }] },
   { id: 'print', icon: '🖨️', title: 'Printing & PDF', intro: 'What goes on the printed pages. The PDF is always true size (1:1).', items: [
     { k: 'printColors', label: 'Print colors', type: 'check', help: 'Off = only lines and numbers, for colored paper.' },
     { k: 'foldPrint', label: 'Print fold lines', type: 'check', help: 'Blue dashes = valley fold, red dash-dot = mountain fold.' },

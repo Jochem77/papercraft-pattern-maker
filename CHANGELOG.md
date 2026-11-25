@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **No piece numbers on the outside** with *Numbers only on tabs*: where a piece number did not fit next to the edge number on a tab, it went on a face (in the test snake on most pieces). It now first tries lower on the tab, where it is wider, with the edge number moved to the other end, then a smaller gap and smaller numbers (down to 1 mm). A piece where no tab has room gets no piece number on paper; it still shows in 3D.
+
 ## [1.0.0-beta.5] - 2026-11-23
 
 ### Added
