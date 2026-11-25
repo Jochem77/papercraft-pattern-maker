@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pinch to zoom** in the pattern on a touchscreen: two fingers zoom and pan; one finger still pans or moves a piece.
+
+### Changed
+
+- **Selecting a piece in the pattern no longer turns the 3D view**; the piece is only highlighted there. Double-click (or double-tap) the piece to turn the 3D view towards it.
+
 ### Fixed
 
 - **Glue tabs no longer stick out past the other piece**: a tab is glued under the face on the other side of the seam, and where that face is narrower than the tab, the tab stuck out (in the test snake about 200 of 550 tabs). The tab now goes on the other side when it fits there unchanged; otherwise it gets a steeper angle at the end where that face is narrow, and is made lower where it is short. Faces joined flat to it count as one surface. Also for *Zipper* and *Two flaps glued together*. In the test snake: 5 tabs still reach slightly past a very thin face.

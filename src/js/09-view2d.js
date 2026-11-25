@@ -122,14 +122,36 @@ svg.addEventListener('wheel', ev => {
   VB.x = p.x - (p.x - VB.x) * k; VB.y = p.y - (p.y - VB.y) * k; VB.w *= k; VB.h *= k; applyVB();
 }, { passive: false });
 let drag = null;
+// Touch: two fingers pinch to zoom and move to pan (fingers on screen by pointer id)
+const fingers = new Map();
+const pinchInfo = () => { const [a, b] = [...fingers.values()]; return { mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; };
+const endFinger = ev => { fingers.delete(ev.pointerId); if (drag && drag.mode === 'pinch' && fingers.size < 2) drag = null; };
 svg.addEventListener('pointerdown', ev => {
   if (!S.cp) return;
+  if (ev.pointerType === 'touch') fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (fingers.size >= 2) {
+    // a second finger: stop moving a piece (it stays where it is) and start pinching
+    if (drag && drag.mode === 'piece' && drag.moved) { updateWorld(); render2D(); }
+    if (fingers.size === 2) { const r = svg.getBoundingClientRect(); drag = { mode: 'pinch', start: pinchInfo(), vb: { ...VB }, r }; }
+    svg.setPointerCapture(ev.pointerId);
+    return;
+  }
   const pg = ev.target.closest('.piece'), hit = ev.target.closest('.hit');
   if (ev.button === 1 || ev.button === 2 || !pg) drag = { mode: 'pan', sx: ev.clientX, sy: ev.clientY, vb: { ...VB } };
   else drag = { mode: 'piece', pid: +pg.dataset.p, el: pg, start: svgPt(ev), sx: ev.clientX, sy: ev.clientY, moved: false, e: hit ? +hit.dataset.e : -1, face: ev.target.dataset.f !== undefined ? +ev.target.dataset.f : -1, shift: ev.shiftKey, alt: ev.altKey, flat: hit && hit.classList.contains('flat') };
   svg.setPointerCapture(ev.pointerId);
 });
 svg.addEventListener('pointermove', ev => {
+  if (fingers.has(ev.pointerId)) fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (drag && drag.mode === 'pinch') {
+    if (fingers.size < 2) return;
+    const s0 = drag.start, s1 = pinchInfo(), v = drag.vb, r = drag.r, k = s0.d / s1.d;
+    const cw = svg.clientWidth || r.width, ch = svg.clientHeight || r.height;
+    // the pattern point under the fingers at the start stays under the fingers
+    const px = v.x + (s0.mx - r.left) * v.w / cw, py = v.y + (s0.my - r.top) * v.h / ch;
+    VB.w = v.w * k; VB.h = v.h * k; VB.x = px - (s1.mx - r.left) * VB.w / cw; VB.y = py - (s1.my - r.top) * VB.h / ch; applyVB();
+    return;
+  }
   if (!drag) {
     const hit = S.tool === 'cut' && ev.target.closest && ev.target.closest('.hit');
     setHover(hit && (!hit.classList.contains('flat') || ev.altKey) ? +hit.dataset.e : -1);
@@ -148,14 +170,20 @@ svg.addEventListener('pointermove', ev => {
   const el = svg.querySelector(`.piece[data-p="${drag.pid}"]`);
   if (el) el.setAttribute('transform', `translate(${fx(p.x)} ${fx(p.y)}) rotate(${fx(p.rot)})`);
 });
+svg.addEventListener('pointercancel', ev => { endFinger(ev); if (drag && drag.mode !== 'pinch' && !fingers.size) drag = null; });
 svg.addEventListener('pointerup', ev => {
+  const pinching = drag && drag.mode === 'pinch';
+  endFinger(ev);
+  if (pinching) return;
   const d = drag; drag = null;
   if (!d || d.mode !== 'piece') return;
   if (d.moved) { updateWorld(); render2D(); return; }
   if (S.paint && d.face >= 0) { pushUndo(); finishPaint(paintFace(d.face)); return; }
   if (S.tool === 'cut' && d.e >= 0 && (!d.flat || d.alt)) { if (d.shift) flipTab(d.e); else toggleEdge(d.e); }
-  else { selectPiece(d.face >= 0 ? d.face : S.cp.pieces[d.pid].faces[0], true); focusPiece3D(); }
+  else selectPiece(d.face >= 0 ? d.face : S.cp.pieces[d.pid].faces[0], true); // only highlight; the 3D view keeps its angle
 });
+// double click (or double tap) on a piece: turn the 3D view towards it
+svg.addEventListener('dblclick', ev => { if (S.cp && S.tool !== 'cut' && !S.paint && ev.target.closest('.piece') && S.selFace >= 0) focusPiece3D(); });
 svg.addEventListener('contextmenu', ev => ev.preventDefault());
 
 function selectPiece(face, rerender) {
