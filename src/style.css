@@ -126,6 +126,8 @@ button.on{background:#dbeafe;border-color:#2563eb;color:#1e40af}
 #mats div{display:flex;align-items:center;gap:6px;font-size:12px}
 #mats input.mname{flex:1;min-width:0;font:inherit;font-size:12px;padding:1px 4px;border:1px solid transparent;border-radius:4px;background:transparent;color:inherit}
 #mats input.mname:hover{border-color:#cbd5e1;background:#fff}
+#mats .mpsize{display:inline-flex;align-items:center;gap:2px}
+#mats .mpsize input{width:52px;font:inherit;font-size:12px;padding:1px 2px}
 #mats input.mname:focus{border-color:#93b4f5;background:#fff;outline:none}
 #mats span.sw{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25)}
 footer{display:flex;gap:14px;align-items:center;padding:5px 10px;background:var(--panel);border-top:1px solid var(--line);font-size:12px;color:var(--muted);min-height:28px;flex-wrap:wrap}

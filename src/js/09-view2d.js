@@ -74,7 +74,7 @@ function pageRects() {
     const [x, y] = pageOrigin(i), [PW, PH] = pageDims(i), marks = silMarkRects(i);
     s += `<rect class="page" x="${x}" y="${y}" width="${PW}" height="${PH}"/>`;
     s += `<rect class="print-area" x="${x + mg}" y="${y + mg}" width="${PW - 2 * mg}" height="${PH - 2 * mg}"/>`;
-    const lab = (S.pageLabels[i] ? ' · ' + colorName(S.pageLabels[i]) : '') + (pagePaper(i) !== S.set.paper || (S.set.groupColors && S.colorPaper && Object.keys(S.colorPaper).length) ? ' · ' + pagePaper(i) : '');
+    const lab = (S.pageLabels[i] ? ' · ' + colorName(S.pageLabels[i]) : '') + (pagePaper(i) !== S.set.paper || (S.set.groupColors && S.colorPaper && Object.keys(S.colorPaper).length) ? ' · ' + paperName(pagePaper(i)) : '');
     s += `<text class="pagelabel" x="${x}" y="${y - 3}">${tr('Page')} ${i + 1}${lab}</text>`;
     for (const ob of silObstacles(i)) s += `<rect x="${fx(x + mg + ob.x)}" y="${fx(y + mg + ob.y)}" width="${fx(ob.w)}" height="${fx(ob.h)}" fill="#94a3b8" fill-opacity="0.22" stroke="none"><title>${tr('Keep-clear zone (Silhouette)')}</title></rect>`;
     for (const r of marks) s += `<rect x="${fx(x + r[0])}" y="${fx(y + r[1])}" width="${fx(r[2])}" height="${fx(r[3])}" fill="#000"/>`;

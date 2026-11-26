@@ -72,7 +72,7 @@ function pdfPageOps(pageIdx, k, total) {
     const fs = Math.min(3.5, fm * 0.35), f2 = Math.min(3, fs * 0.86);
     const lx = marks.length ? st.silInset + st.silLen + 6 : mg; // rechts van de vrije zone linksonder
     const base1 = PH - fm + 1.5 + fs;
-    const lab = `${baseName()} - ${tr('page {k}/{n}', { k, n: total })}` + (S.pageLabels[pageIdx] ? ' - ' + colorName(S.pageLabels[pageIdx]) : '') + ` (${pagePaper(pageIdx)} ${tr(st.orient === 'landscape' ? 'landscape' : 'portrait')})`;
+    const lab = `${baseName()} - ${tr('page {k}/{n}', { k, n: total })}` + (S.pageLabels[pageIdx] ? ' - ' + colorName(S.pageLabels[pageIdx]) : '') + ` (${paperName(pagePaper(pageIdx))} ${tr(st.orient === 'landscape' ? 'landscape' : 'portrait')})`;
     T(lab, fs, lx, base1, 0.2);
     if (marks.length) {
       // instellingen van de markeringen (zelfde notatie als Silhouette Studio)
@@ -125,7 +125,7 @@ async function buildPDFs() {
   const safe = t => String(t).replace(/[\\/:*?"<>|]+/g, '_').trim() || 'color';
   const out = [];
   for (const [k, list] of groups) {
-    const paper = pagePaper(list[0]);
+    const paper = paperTag(pagePaper(list[0]));
     const name = k ? `${baseName()}-${safe(colorName(k))}-${paper}.pdf` : `${baseName()}-${paper}.pdf`;
     out.push({ name, blob: await buildPDF(list), pages: list.length });
   }
@@ -140,7 +140,7 @@ async function exportPDF() {
     if (pdfs.length === 1) download(pdfs[0].name, pdfs[0].blob);
     else download(baseName() + '-PDF.zip', makeZip(await Promise.all(pdfs.map(async f => ({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) })))));
     const np = pdfs.reduce((n, f) => n + f.pages, 0);
-    toast((pdfs.length === 1 ? tr('PDF downloaded: {n} {pages} {p}, true size (1:1).', { n: np, pages: pl(np, 'page', 'pages'), p: pagePaper(pagesWithContent()[0]) })
+    toast((pdfs.length === 1 ? tr('PDF downloaded: {n} {pages} {p}, true size (1:1).', { n: np, pages: pl(np, 'page', 'pages'), p: paperName(pagePaper(pagesWithContent()[0])) })
       : tr('{k} PDFs (one per color) in a ZIP: {n} {pages}, true size (1:1).', { k: pdfs.length, n: np, pages: pl(np, 'page', 'pages') })) + (warn ? tr(' Note: some pieces are (partly) outside the printable area.') : ''), 5000);
   } catch (e) { console.error(e); toast(tr('Creating PDF failed: ') + e.message, 5000); }
   busy(false);
@@ -278,7 +278,7 @@ async function exportPlotter() {
     const safe = t => String(t).replace(/[\\/:*?"<>|]+/g, '_').trim() || 'color', seen = new Map();
     const files = pages.map(i => {
       const key = S.set.groupColors ? (S.pageLabels[i] || '') : '', n = (seen.get(key) || 0) + 1; seen.set(key, n);
-      return { name: `${baseName()}${key ? '-' + safe(colorName(key)) : ''}-${pagePaper(i)}-${tr('page')}-${String(n).padStart(2, '0')}.svg`, data: plotterSVG(i) };
+      return { name: `${baseName()}${key ? '-' + safe(colorName(key)) : ''}-${paperTag(pagePaper(i))}-${tr('page')}-${String(n).padStart(2, '0')}.svg`, data: plotterSVG(i) };
     });
     for (const f of await buildPDFs()) files.push({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) });
     files.push({ name: baseName() + '.papercraft.json', data: JSON.stringify(projectData()) });

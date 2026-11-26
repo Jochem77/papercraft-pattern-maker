@@ -10,7 +10,9 @@ const TABS = [
     { k: 'flatDeg', label: 'Flat below angle', type: 'number', unit: '°', min: 0, max: 20, step: 0.5, help: 'Edges with a smaller angle count as flat: no fold line, and preferably not cut.' }] },
   { id: 'paper', icon: '📄', title: 'Paper & layout', intro: 'Paper size and how the pieces are distributed over the pages.', items: [
     { section: 'Paper' },
-    { k: 'paper', label: 'Size', type: 'select', raw: true, opts: { A4: 'A4 (210 × 297 mm)', A3: 'A3 (297 × 420 mm)' } },
+    { k: 'paper', label: 'Size', type: 'select', opts: { A4: 'A4 (210 × 297 mm)', A3: 'A3 (297 × 420 mm)', custom: 'Custom size' } },
+    { k: 'paperW', label: 'Paper width', type: 'number', unit: 'mm', min: 100, max: 1000, step: 1, dep: 'paper=custom', help: 'Width of the paper in portrait; Landscape swaps width and height.' },
+    { k: 'paperH', label: 'Paper height', type: 'number', unit: 'mm', min: 100, max: 1000, step: 1, dep: 'paper=custom' },
     { k: 'orient', label: 'Orientation', type: 'select', opts: { portrait: 'Portrait', landscape: 'Landscape' } },
     { k: 'margin', label: 'Margin', type: 'number', unit: 'mm', min: 0, max: 40, step: 0.5, help: 'Empty border all around; most printers cannot print up to the edge.' },
     { section: 'Layout' },
@@ -137,7 +139,7 @@ function settingsDone() {
   applySettings(keys);
 }
 // Apply several changed settings at once: unfold again at most once.
-const RELAYOUT = ['minWidth', 'minSize', 'maxFaces', 'pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
+const RELAYOUT = ['minWidth', 'minSize', 'maxFaces', 'pieceShape', 'size', 'paper', 'paperW', 'paperH', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
 async function applySettings(keys) {
   if (keys.includes('lang')) applyLanguage();
   if (!S.mesh) return;
@@ -220,7 +222,7 @@ function applySetting(k) {
   if (k === 'layoutMode') { busy(true, tr('Arranging pieces…')); setTimeout(() => { S.world = null; refresh(); fitView(); busy(false); }, 40); return; }
   if (k === 'pieceGap') { S.world = null; refresh(); fitView(); return; }
   if (k.startsWith('sil')) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
-  if (['paper', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
+  if (['paper', 'paperW', 'paperH', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
   if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'minWidth', 'minSize', 'maxFaces', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
   if (k === 'pageCols') {
     const old = S.prevCols || 3, nc = pageCols();

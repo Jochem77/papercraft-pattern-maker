@@ -139,6 +139,8 @@ button.on{background:#dbeafe;border-color:#2563eb;color:#1e40af}
 #mats div{display:flex;align-items:center;gap:6px;font-size:12px}
 #mats input.mname{flex:1;min-width:0;font:inherit;font-size:12px;padding:1px 4px;border:1px solid transparent;border-radius:4px;background:transparent;color:inherit}
 #mats input.mname:hover{border-color:#cbd5e1;background:#fff}
+#mats .mpsize{display:inline-flex;align-items:center;gap:2px}
+#mats .mpsize input{width:52px;font:inherit;font-size:12px;padding:1px 2px}
 #mats input.mname:focus{border-color:#93b4f5;background:#fff;outline:none}
 #mats span.sw{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25)}
 footer{display:flex;gap:14px;align-items:center;padding:5px 10px;background:var(--panel);border-top:1px solid var(--line);font-size:12px;color:var(--muted);min-height:28px;flex-wrap:wrap}
@@ -2233,7 +2235,7 @@ const $ = id => document.getElementById(id);
 const PAPER = { A4: [210, 297], A3: [297, 420] };
 const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
-  size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
+  size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', paperW: 210, paperH: 297, orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
   tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', pairMin: 0, zipMax: 20, zipSeg: 10, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
@@ -2248,9 +2250,22 @@ try { Object.assign(S.set, JSON.parse(localStorage.getItem('papercraft.settings'
 if (S.set.silInset === 15.9) S.set.silInset = 15.88; // oude standaard → waarde uit Silhouette Studio
 const saveSettings = () => { try { localStorage.setItem('papercraft.settings', JSON.stringify(S.set)); } catch (e) {} };
 
-// Paper per colour (S.colorPaper: 'r,g,b' -> 'A4' | 'A3'), used with "Pages per color".
+// Paper per colour (S.colorPaper: 'r,g,b' -> 'A4' | 'A3' | '300x450'), used with "Pages per color".
+// A paper is 'A4', 'A3', 'custom' (the custom size in the settings, paperW × paperH) or 'WxH' in mm
+// (a custom size for one material). Sizes are portrait; Landscape swaps width and height.
 // Functions that take "i" accept a page number, a paper name, or nothing (the standard paper).
-const dimsOf = paper => { let [w, h] = PAPER[paper] || PAPER.A4; if (S.set.orient === 'landscape') [w, h] = [h, w]; return [w, h]; };
+const PAPER_MIN = 100, PAPER_MAX = 1000;
+const clampPaper = v => Math.min(PAPER_MAX, Math.max(PAPER_MIN, Math.round(+v * 10) / 10 || 0));
+const customDims = paper => {
+  if (paper === 'custom') return [clampPaper(S.set.paperW), clampPaper(S.set.paperH)];
+  const m = /^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/.exec(paper || '');
+  return m ? [clampPaper(m[1]), clampPaper(m[2])] : null;
+};
+const paperWH = paper => customDims(paper) || PAPER[paper] || PAPER.A4; // portrait
+const dimsOf = paper => { let [w, h] = paperWH(paper); if (S.set.orient === 'landscape') [w, h] = [h, w]; return [w, h]; };
+// for people: 'A4' or '300 × 450 mm'; in file names: 'A4' or '300x450'
+const paperName = paper => { const c = customDims(paper); return c ? c[0] + ' × ' + c[1] + ' mm' : paper; };
+const paperTag = paper => { const c = customDims(paper); return c ? c[0] + 'x' + c[1] : paper; };
 const keyPaper = key => (S.set.groupColors && S.colorPaper && S.colorPaper[key]) || S.set.paper;
 const pagePaper = i => typeof i === 'string' ? i : (i != null && S.pageLabels && S.pageLabels[i] != null ? keyPaper(S.pageLabels[i]) : S.set.paper);
 const pageDims = i => dimsOf(pagePaper(i));
@@ -2368,6 +2383,9 @@ const NL = {
   'Arrangement': 'Indeling', 'Normal': 'Normaal', 'Fewest pages': 'Zo weinig mogelijk papier', 'Neighbours together': 'Buren bij elkaar',
   'Fewest pages: tries several arrangements and keeps the one with the fewest pages (takes a few seconds). Neighbours together: pieces that are joined in the model lie next to each other, which makes building easier but can take more paper.': 'Zo weinig mogelijk papier: probeert meerdere indelingen en houdt die met de minste pagina’s (duurt een paar seconden). Buren bij elkaar: stukken die in het model aan elkaar vastzitten liggen naast elkaar; dat bouwt makkelijker, maar kan meer papier kosten.',
   'Paper for this color (with Pages per color)': 'Papier voor deze kleur (met Pagina’s per kleur)', 'Paper: standard': 'Papier: standaard',
+  'Custom size': 'Eigen formaat', 'Custom size…': 'Eigen formaat…', 'Paper width': 'Papierbreedte', 'Paper height': 'Papierhoogte',
+  'Width of the paper in portrait; Landscape swaps width and height.': 'Breedte van het papier staand; bij Liggend worden breedte en hoogte omgewisseld.',
+  'Paper width × height in mm (portrait)': 'Papierbreedte × hoogte in mm (staand)',
   'Pages per color switched on: every color gets its own pages.': 'Pagina’s per kleur aangezet: elke kleur krijgt eigen pagina’s.',
   '{k} PDFs (one per color) in a ZIP: {n} {pages}, true size (1:1).': '{k} PDF’s (één per kleur) in een ZIP: {n} {pages}, ware grootte (1:1).',
   'Avoid pieces narrower than': 'Stukken smaller dan dit vermijden', 'Avoid pieces smaller than': 'Stukken kleiner dan dit vermijden',
@@ -2512,7 +2530,9 @@ const TABS = [
     { k: 'flatDeg', label: 'Flat below angle', type: 'number', unit: '°', min: 0, max: 20, step: 0.5, help: 'Edges with a smaller angle count as flat: no fold line, and preferably not cut.' }] },
   { id: 'paper', icon: '📄', title: 'Paper & layout', intro: 'Paper size and how the pieces are distributed over the pages.', items: [
     { section: 'Paper' },
-    { k: 'paper', label: 'Size', type: 'select', raw: true, opts: { A4: 'A4 (210 × 297 mm)', A3: 'A3 (297 × 420 mm)' } },
+    { k: 'paper', label: 'Size', type: 'select', opts: { A4: 'A4 (210 × 297 mm)', A3: 'A3 (297 × 420 mm)', custom: 'Custom size' } },
+    { k: 'paperW', label: 'Paper width', type: 'number', unit: 'mm', min: 100, max: 1000, step: 1, dep: 'paper=custom', help: 'Width of the paper in portrait; Landscape swaps width and height.' },
+    { k: 'paperH', label: 'Paper height', type: 'number', unit: 'mm', min: 100, max: 1000, step: 1, dep: 'paper=custom' },
     { k: 'orient', label: 'Orientation', type: 'select', opts: { portrait: 'Portrait', landscape: 'Landscape' } },
     { k: 'margin', label: 'Margin', type: 'number', unit: 'mm', min: 0, max: 40, step: 0.5, help: 'Empty border all around; most printers cannot print up to the edge.' },
     { section: 'Layout' },
@@ -2639,7 +2659,7 @@ function settingsDone() {
   applySettings(keys);
 }
 // Apply several changed settings at once: unfold again at most once.
-const RELAYOUT = ['minWidth', 'minSize', 'maxFaces', 'pieceShape', 'size', 'paper', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
+const RELAYOUT = ['minWidth', 'minSize', 'maxFaces', 'pieceShape', 'size', 'paper', 'paperW', 'paperH', 'orient', 'margin', 'tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'];
 async function applySettings(keys) {
   if (keys.includes('lang')) applyLanguage();
   if (!S.mesh) return;
@@ -2722,7 +2742,7 @@ function applySetting(k) {
   if (k === 'layoutMode') { busy(true, tr('Arranging pieces…')); setTimeout(() => { S.world = null; refresh(); fitView(); busy(false); }, 40); return; }
   if (k === 'pieceGap') { S.world = null; refresh(); fitView(); return; }
   if (k.startsWith('sil')) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
-  if (['paper', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
+  if (['paper', 'paperW', 'paperH', 'orient', 'margin'].includes(k)) { if (autoAgain) return runAuto(); S.world = null; refresh(); fitView(); warnRecut(); return; }
   if (['tabH', 'tabAngle', 'minTab', 'cutColors', 'mergeIslands', 'minWidth', 'minSize', 'maxFaces', 'pieceShape', 'sharpCut', 'sharpDeg', 'maxPieceOn', 'maxPiece'].includes(k)) { if (autoAgain) return runAuto(); refresh(); return; }
   if (k === 'pageCols') {
     const old = S.prevCols || 3, nc = pageCols();
@@ -3066,10 +3086,19 @@ function showMaterials() {
   else {
     const count = new Array(mats.length).fill(0);
     S.faceMat.forEach(i => count[i]++);
-    h = mats.map((mt, i) => `<div class="row${S.paint && S.brush === i ? ' sel' : ''}" data-mat="${i}" title="${tr('Click to paint with this color')}"><input type="color" data-matcol="${i}" value="${hex(mt.color)}" title="${tr('Change color')}"><input class="mname" data-matname="${i}" value="${esc(mt.name)}" maxlength="40" spellcheck="false" title="${tr('Name of this material: on the pages and in the file name of its PDF')}"><span style="margin-left:auto">${count[i]}</span><select data-matpaper="${i}" title="${tr('Paper for this color (with Pages per color)')}"><option value="">${tr('Paper: standard')}</option>${Object.keys(PAPER).map(k => `<option value="${k}"${S.colorPaper && S.colorPaper[mt.color.join(',')] === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>`).join('');
+    h = mats.map((mt, i) => `<div class="row${S.paint && S.brush === i ? ' sel' : ''}" data-mat="${i}" title="${tr('Click to paint with this color')}"><input type="color" data-matcol="${i}" value="${hex(mt.color)}" title="${tr('Change color')}"><input class="mname" data-matname="${i}" value="${esc(mt.name)}" maxlength="40" spellcheck="false" title="${tr('Name of this material: on the pages and in the file name of its PDF')}"><span style="margin-left:auto">${count[i]}</span>${matPaperHtml(i, S.colorPaper && S.colorPaper[mt.color.join(',')])}</div>`).join('');
   }
   h += `<div class="matbtns"><button data-act="paint" class="${S.paint ? 'on' : ''}">${tr(S.paint ? 'Done painting' : '🖌 Paint faces')}</button><button data-act="add">${tr('+ Color')}</button><button data-act="fix" title="${tr('Single triangles with a different color get the color of their neighbours')}">${tr('Fix tiny islands')}</button></div>`;
   $('mats').innerHTML = h;
+}
+// paper choice of one material: standard, A4, A3 or a custom size (two fields width × height)
+function matPaperHtml(i, cur) {
+  const c = cur && cur !== 'custom' ? customDims(cur) : null;
+  const opts = [['', tr('Paper: standard')], ...Object.keys(PAPER).map(k => [k, k]), ['size', tr('Custom size…')]];
+  const sel = c ? 'size' : (cur || '');
+  let h = `<select data-matpaper="${i}" title="${tr('Paper for this color (with Pages per color)')}">${opts.map(([v, t]) => `<option value="${v}"${v === sel ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
+  if (c) h += `<span class="mpsize" title="${tr('Paper width × height in mm (portrait)')}"><input type="number" data-matpw="${i}" value="${c[0]}" min="${PAPER_MIN}" max="${PAPER_MAX}" step="1">×<input type="number" data-matph="${i}" value="${c[1]}" min="${PAPER_MIN}" max="${PAPER_MAX}" step="1"></span>`;
+  return h;
 }
 function ensureMaterials() {
   if (S.model.materials && S.faceMat) return;
@@ -3186,8 +3215,19 @@ function setupMaterialEvents() {
       render2D(); return;
     }
     if (ev.target.dataset.matcol !== undefined) { buildDrawings(); render2D(); return; }
-    const mi = ev.target.dataset.matpaper; if (mi === undefined || !S.mesh) return;
-    const key = S.model.materials[+mi].color.join(','), v = ev.target.value;
+    const t = ev.target;
+    if ((t.dataset.matpw !== undefined || t.dataset.matph !== undefined) && S.mesh) { // custom size of one material
+      const i = +(t.dataset.matpw ?? t.dataset.matph), row = t.closest('.row');
+      const w = clampPaper(row.querySelector('[data-matpw]').value), hh = clampPaper(row.querySelector('[data-matph]').value);
+      const key = S.model.materials[i].color.join(',');
+      S.colorPaper[key] = w + 'x' + hh; showMaterials();
+      if (!S.manual) runAuto(); else { S.world = null; refresh(); fitView(); warnRecut(); }
+      return;
+    }
+    const mi = t.dataset.matpaper; if (mi === undefined || !S.mesh) return;
+    const key = S.model.materials[+mi].color.join(','); let v = t.value;
+    if (v === 'size') { const [w, hh] = paperWH(S.set.paper); v = w + 'x' + hh; } // start from the standard paper
+    setTimeout(showMaterials, 0); // show or hide the size fields
     if (!S.colorPaper) S.colorPaper = {};
     if (v) S.colorPaper[key] = v; else delete S.colorPaper[key];
     if (v && !S.set.groupColors) { S.set.groupColors = true; saveSettings(); syncSide(); toast(tr('Pages per color switched on: every color gets its own pages.'), 4000); }
@@ -3852,7 +3892,7 @@ function pageRects() {
     const [x, y] = pageOrigin(i), [PW, PH] = pageDims(i), marks = silMarkRects(i);
     s += `<rect class="page" x="${x}" y="${y}" width="${PW}" height="${PH}"/>`;
     s += `<rect class="print-area" x="${x + mg}" y="${y + mg}" width="${PW - 2 * mg}" height="${PH - 2 * mg}"/>`;
-    const lab = (S.pageLabels[i] ? ' · ' + colorName(S.pageLabels[i]) : '') + (pagePaper(i) !== S.set.paper || (S.set.groupColors && S.colorPaper && Object.keys(S.colorPaper).length) ? ' · ' + pagePaper(i) : '');
+    const lab = (S.pageLabels[i] ? ' · ' + colorName(S.pageLabels[i]) : '') + (pagePaper(i) !== S.set.paper || (S.set.groupColors && S.colorPaper && Object.keys(S.colorPaper).length) ? ' · ' + paperName(pagePaper(i)) : '');
     s += `<text class="pagelabel" x="${x}" y="${y - 3}">${tr('Page')} ${i + 1}${lab}</text>`;
     for (const ob of silObstacles(i)) s += `<rect x="${fx(x + mg + ob.x)}" y="${fx(y + mg + ob.y)}" width="${fx(ob.w)}" height="${fx(ob.h)}" fill="#94a3b8" fill-opacity="0.22" stroke="none"><title>${tr('Keep-clear zone (Silhouette)')}</title></rect>`;
     for (const r of marks) s += `<rect x="${fx(x + r[0])}" y="${fx(y + r[1])}" width="${fx(r[2])}" height="${fx(r[3])}" fill="#000"/>`;
@@ -4519,7 +4559,7 @@ function pdfPageOps(pageIdx, k, total) {
     const fs = Math.min(3.5, fm * 0.35), f2 = Math.min(3, fs * 0.86);
     const lx = marks.length ? st.silInset + st.silLen + 6 : mg; // rechts van de vrije zone linksonder
     const base1 = PH - fm + 1.5 + fs;
-    const lab = `${baseName()} - ${tr('page {k}/{n}', { k, n: total })}` + (S.pageLabels[pageIdx] ? ' - ' + colorName(S.pageLabels[pageIdx]) : '') + ` (${pagePaper(pageIdx)} ${tr(st.orient === 'landscape' ? 'landscape' : 'portrait')})`;
+    const lab = `${baseName()} - ${tr('page {k}/{n}', { k, n: total })}` + (S.pageLabels[pageIdx] ? ' - ' + colorName(S.pageLabels[pageIdx]) : '') + ` (${paperName(pagePaper(pageIdx))} ${tr(st.orient === 'landscape' ? 'landscape' : 'portrait')})`;
     T(lab, fs, lx, base1, 0.2);
     if (marks.length) {
       // instellingen van de markeringen (zelfde notatie als Silhouette Studio)
@@ -4572,7 +4612,7 @@ async function buildPDFs() {
   const safe = t => String(t).replace(/[\\/:*?"<>|]+/g, '_').trim() || 'color';
   const out = [];
   for (const [k, list] of groups) {
-    const paper = pagePaper(list[0]);
+    const paper = paperTag(pagePaper(list[0]));
     const name = k ? `${baseName()}-${safe(colorName(k))}-${paper}.pdf` : `${baseName()}-${paper}.pdf`;
     out.push({ name, blob: await buildPDF(list), pages: list.length });
   }
@@ -4587,7 +4627,7 @@ async function exportPDF() {
     if (pdfs.length === 1) download(pdfs[0].name, pdfs[0].blob);
     else download(baseName() + '-PDF.zip', makeZip(await Promise.all(pdfs.map(async f => ({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) })))));
     const np = pdfs.reduce((n, f) => n + f.pages, 0);
-    toast((pdfs.length === 1 ? tr('PDF downloaded: {n} {pages} {p}, true size (1:1).', { n: np, pages: pl(np, 'page', 'pages'), p: pagePaper(pagesWithContent()[0]) })
+    toast((pdfs.length === 1 ? tr('PDF downloaded: {n} {pages} {p}, true size (1:1).', { n: np, pages: pl(np, 'page', 'pages'), p: paperName(pagePaper(pagesWithContent()[0])) })
       : tr('{k} PDFs (one per color) in a ZIP: {n} {pages}, true size (1:1).', { k: pdfs.length, n: np, pages: pl(np, 'page', 'pages') })) + (warn ? tr(' Note: some pieces are (partly) outside the printable area.') : ''), 5000);
   } catch (e) { console.error(e); toast(tr('Creating PDF failed: ') + e.message, 5000); }
   busy(false);
@@ -4725,7 +4765,7 @@ async function exportPlotter() {
     const safe = t => String(t).replace(/[\\/:*?"<>|]+/g, '_').trim() || 'color', seen = new Map();
     const files = pages.map(i => {
       const key = S.set.groupColors ? (S.pageLabels[i] || '') : '', n = (seen.get(key) || 0) + 1; seen.set(key, n);
-      return { name: `${baseName()}${key ? '-' + safe(colorName(key)) : ''}-${pagePaper(i)}-${tr('page')}-${String(n).padStart(2, '0')}.svg`, data: plotterSVG(i) };
+      return { name: `${baseName()}${key ? '-' + safe(colorName(key)) : ''}-${paperTag(pagePaper(i))}-${tr('page')}-${String(n).padStart(2, '0')}.svg`, data: plotterSVG(i) };
     });
     for (const f of await buildPDFs()) files.push({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) });
     files.push({ name: baseName() + '.papercraft.json', data: JSON.stringify(projectData()) });

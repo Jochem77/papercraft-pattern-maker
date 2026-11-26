@@ -12,7 +12,7 @@ const $ = id => document.getElementById(id);
 const PAPER = { A4: [210, 297], A3: [297, 420] };
 const GAP = 20; // ruimte tussen pagina's op het scherm (mm)
 const DEF = {
-  size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
+  size: 150, flatDeg: 1, thinMM: 2, paper: 'A4', paperW: 210, paperH: 297, orient: 'portrait', margin: 10, pieceGap: 2, layoutMode: 'normal',
   silMarks: false, silInset: 15.88, silLen: 20, silThick: 0.5, silSquare: 5,
   tabH: 6, tabAngle: 45, minTab: 60, tabStyle: 'glue', pairMin: 0, zipMax: 20, zipSeg: 10, cutColors: false, mergeIslands: false, groupColors: false, pieceShape: 'compact', sharpCut: false, sharpDeg: 60, maxPieceOn: false, maxPiece: 100, maxFaces: 8, minWidth: 8, minSize: 25,
   lang: 'en', numbers: true, fontSize: 3, pieceNums: true, pieceNumSize: 5, cleanFaces: false, fontFamily: 'helvetica', pageCols: 3, printColors: true, foldMode: 'score', foldPrint: true, printedInside: false, perfCut: 2, perfGap: 1, scoreMinDeg: 0
@@ -27,9 +27,22 @@ try { Object.assign(S.set, JSON.parse(localStorage.getItem('papercraft.settings'
 if (S.set.silInset === 15.9) S.set.silInset = 15.88; // oude standaard → waarde uit Silhouette Studio
 const saveSettings = () => { try { localStorage.setItem('papercraft.settings', JSON.stringify(S.set)); } catch (e) {} };
 
-// Paper per colour (S.colorPaper: 'r,g,b' -> 'A4' | 'A3'), used with "Pages per color".
+// Paper per colour (S.colorPaper: 'r,g,b' -> 'A4' | 'A3' | '300x450'), used with "Pages per color".
+// A paper is 'A4', 'A3', 'custom' (the custom size in the settings, paperW × paperH) or 'WxH' in mm
+// (a custom size for one material). Sizes are portrait; Landscape swaps width and height.
 // Functions that take "i" accept a page number, a paper name, or nothing (the standard paper).
-const dimsOf = paper => { let [w, h] = PAPER[paper] || PAPER.A4; if (S.set.orient === 'landscape') [w, h] = [h, w]; return [w, h]; };
+const PAPER_MIN = 100, PAPER_MAX = 1000;
+const clampPaper = v => Math.min(PAPER_MAX, Math.max(PAPER_MIN, Math.round(+v * 10) / 10 || 0));
+const customDims = paper => {
+  if (paper === 'custom') return [clampPaper(S.set.paperW), clampPaper(S.set.paperH)];
+  const m = /^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/.exec(paper || '');
+  return m ? [clampPaper(m[1]), clampPaper(m[2])] : null;
+};
+const paperWH = paper => customDims(paper) || PAPER[paper] || PAPER.A4; // portrait
+const dimsOf = paper => { let [w, h] = paperWH(paper); if (S.set.orient === 'landscape') [w, h] = [h, w]; return [w, h]; };
+// for people: 'A4' or '300 × 450 mm'; in file names: 'A4' or '300x450'
+const paperName = paper => { const c = customDims(paper); return c ? c[0] + ' × ' + c[1] + ' mm' : paper; };
+const paperTag = paper => { const c = customDims(paper); return c ? c[0] + 'x' + c[1] : paper; };
 const keyPaper = key => (S.set.groupColors && S.colorPaper && S.colorPaper[key]) || S.set.paper;
 const pagePaper = i => typeof i === 'string' ? i : (i != null && S.pageLabels && S.pageLabels[i] != null ? keyPaper(S.pageLabels[i]) : S.set.paper);
 const pageDims = i => dimsOf(pagePaper(i));

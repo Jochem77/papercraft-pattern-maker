@@ -7,10 +7,19 @@ function showMaterials() {
   else {
     const count = new Array(mats.length).fill(0);
     S.faceMat.forEach(i => count[i]++);
-    h = mats.map((mt, i) => `<div class="row${S.paint && S.brush === i ? ' sel' : ''}" data-mat="${i}" title="${tr('Click to paint with this color')}"><input type="color" data-matcol="${i}" value="${hex(mt.color)}" title="${tr('Change color')}"><input class="mname" data-matname="${i}" value="${esc(mt.name)}" maxlength="40" spellcheck="false" title="${tr('Name of this material: on the pages and in the file name of its PDF')}"><span style="margin-left:auto">${count[i]}</span><select data-matpaper="${i}" title="${tr('Paper for this color (with Pages per color)')}"><option value="">${tr('Paper: standard')}</option>${Object.keys(PAPER).map(k => `<option value="${k}"${S.colorPaper && S.colorPaper[mt.color.join(',')] === k ? ' selected' : ''}>${k}</option>`).join('')}</select></div>`).join('');
+    h = mats.map((mt, i) => `<div class="row${S.paint && S.brush === i ? ' sel' : ''}" data-mat="${i}" title="${tr('Click to paint with this color')}"><input type="color" data-matcol="${i}" value="${hex(mt.color)}" title="${tr('Change color')}"><input class="mname" data-matname="${i}" value="${esc(mt.name)}" maxlength="40" spellcheck="false" title="${tr('Name of this material: on the pages and in the file name of its PDF')}"><span style="margin-left:auto">${count[i]}</span>${matPaperHtml(i, S.colorPaper && S.colorPaper[mt.color.join(',')])}</div>`).join('');
   }
   h += `<div class="matbtns"><button data-act="paint" class="${S.paint ? 'on' : ''}">${tr(S.paint ? 'Done painting' : '🖌 Paint faces')}</button><button data-act="add">${tr('+ Color')}</button><button data-act="fix" title="${tr('Single triangles with a different color get the color of their neighbours')}">${tr('Fix tiny islands')}</button></div>`;
   $('mats').innerHTML = h;
+}
+// paper choice of one material: standard, A4, A3 or a custom size (two fields width × height)
+function matPaperHtml(i, cur) {
+  const c = cur && cur !== 'custom' ? customDims(cur) : null;
+  const opts = [['', tr('Paper: standard')], ...Object.keys(PAPER).map(k => [k, k]), ['size', tr('Custom size…')]];
+  const sel = c ? 'size' : (cur || '');
+  let h = `<select data-matpaper="${i}" title="${tr('Paper for this color (with Pages per color)')}">${opts.map(([v, t]) => `<option value="${v}"${v === sel ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`;
+  if (c) h += `<span class="mpsize" title="${tr('Paper width × height in mm (portrait)')}"><input type="number" data-matpw="${i}" value="${c[0]}" min="${PAPER_MIN}" max="${PAPER_MAX}" step="1">×<input type="number" data-matph="${i}" value="${c[1]}" min="${PAPER_MIN}" max="${PAPER_MAX}" step="1"></span>`;
+  return h;
 }
 function ensureMaterials() {
   if (S.model.materials && S.faceMat) return;
@@ -127,8 +136,19 @@ function setupMaterialEvents() {
       render2D(); return;
     }
     if (ev.target.dataset.matcol !== undefined) { buildDrawings(); render2D(); return; }
-    const mi = ev.target.dataset.matpaper; if (mi === undefined || !S.mesh) return;
-    const key = S.model.materials[+mi].color.join(','), v = ev.target.value;
+    const t = ev.target;
+    if ((t.dataset.matpw !== undefined || t.dataset.matph !== undefined) && S.mesh) { // custom size of one material
+      const i = +(t.dataset.matpw ?? t.dataset.matph), row = t.closest('.row');
+      const w = clampPaper(row.querySelector('[data-matpw]').value), hh = clampPaper(row.querySelector('[data-matph]').value);
+      const key = S.model.materials[i].color.join(',');
+      S.colorPaper[key] = w + 'x' + hh; showMaterials();
+      if (!S.manual) runAuto(); else { S.world = null; refresh(); fitView(); warnRecut(); }
+      return;
+    }
+    const mi = t.dataset.matpaper; if (mi === undefined || !S.mesh) return;
+    const key = S.model.materials[+mi].color.join(','); let v = t.value;
+    if (v === 'size') { const [w, hh] = paperWH(S.set.paper); v = w + 'x' + hh; } // start from the standard paper
+    setTimeout(showMaterials, 0); // show or hide the size fields
     if (!S.colorPaper) S.colorPaper = {};
     if (v) S.colorPaper[key] = v; else delete S.colorPaper[key];
     if (v && !S.set.groupColors) { S.set.groupColors = true; saveSettings(); syncSide(); toast(tr('Pages per color switched on: every color gets its own pages.'), 4000); }
