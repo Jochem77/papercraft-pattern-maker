@@ -100,6 +100,7 @@ function render2D() {
   }
   s += '</g><g id="hl"></g>';
   svg.innerHTML = s;
+  svg.classList.toggle('hassel', selP >= 0); // the other pieces fade
   drawHover2D();
 }
 
@@ -186,12 +187,35 @@ svg.addEventListener('pointerup', ev => {
 svg.addEventListener('dblclick', ev => { if (S.cp && S.tool !== 'cut' && !S.paint && ev.target.closest('.piece') && S.selFace >= 0) focusPiece3D(); });
 svg.addEventListener('contextmenu', ev => ev.preventDefault());
 
+// Show the selected piece in the pattern (after selecting it in 3D): move the view to it when it is
+// not (fully) visible, zooming out when it does not fit, and let it blink briefly.
+let revealAnim = null;
+function reveal2D() {
+  if (S.selFace < 0 || !S.cp) return;
+  const pid = S.cp.pieceOf[S.selFace], p = S.cp.pieces[pid], bb = p.wbb;
+  const el = svg.querySelector(`.piece[data-p="${pid}"]`);
+  if (el) { el.classList.remove('flash'); void el.getBBox(); el.classList.add('flash'); }
+  if (!bb) return;
+  const pad = 0.08, inside = bb[0] >= VB.x + VB.w * pad && bb[2] <= VB.x + VB.w * (1 - pad) && bb[1] >= VB.y + VB.h * pad && bb[3] <= VB.y + VB.h * (1 - pad);
+  if (inside) return;
+  const k = Math.max(1, (bb[2] - bb[0]) / (VB.w * 0.7), (bb[3] - bb[1]) / (VB.h * 0.7));
+  const to = { w: VB.w * k, h: VB.h * k }; to.x = (bb[0] + bb[2]) / 2 - to.w / 2; to.y = (bb[1] + bb[3]) / 2 - to.h / 2;
+  const from = { ...VB }, t0 = performance.now(), T = 280;
+  cancelAnimationFrame(revealAnim);
+  const step = now => {
+    const t = Math.min(1, (now - t0) / T), e = t * (2 - t);
+    for (const q of ['x', 'y', 'w', 'h']) VB[q] = from[q] + (to[q] - from[q]) * e;
+    applyVB(); if (t < 1) revealAnim = requestAnimationFrame(step);
+  };
+  revealAnim = requestAnimationFrame(step);
+}
 function selectPiece(face, rerender) {
   S.selFace = face;
   if (rerender) { render2D(); update3DColors(); }
   else {
     const pid = face >= 0 ? S.cp.pieceOf[face] : -1;
     svg.querySelectorAll('.piece').forEach(g => g.classList.toggle('sel', +g.dataset.p === pid));
+    svg.classList.toggle('hassel', pid >= 0);
     update3DColors();
   }
 }

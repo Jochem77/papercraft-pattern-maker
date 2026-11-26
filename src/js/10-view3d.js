@@ -406,7 +406,7 @@ renderer.domElement.addEventListener('pointerup', ev => {
   const p = pick3(ev);
   if (S.tool === 'cut' && p.edge >= 0) { if (ev.shiftKey) flipTab(p.edge); else toggleEdge(p.edge); }
   else if (S.tool === 'object') { S.selObject = p.face >= 0 ? objIds().of[p.face] : -1; showObjects(); update3DColors(); }
-  else if (p.face >= 0) selectPiece(p.face, true);
+  else if (p.face >= 0) { selectPiece(p.face, true); reveal2D(); }
   else selectPiece(-1, true);
 });
 

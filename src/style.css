@@ -173,6 +173,9 @@ dialog kbd{background:#f3f4f6;border:1px solid var(--line);border-radius:4px;pad
 #sheet .hit.flat{cursor:default}
 #sheet .piece{cursor:move}
 #sheet .piece.sel{filter:drop-shadow(0 0 2.5px #2563eb) drop-shadow(0 0 1px #2563eb)}
+#sheet.hassel .piece:not(.sel){opacity:.25}
+#sheet .piece.sel.flash{animation:pcflash .45s ease-in-out 3}
+@keyframes pcflash{50%{filter:drop-shadow(0 0 6px #2563eb) drop-shadow(0 0 3px #2563eb)}}
 #sheet .piece.off .facefill{stroke:#f59e0b;stroke-width:2px}
 #sheet #hl line{stroke:#f59e0b;stroke-width:5px;stroke-linecap:round;opacity:.9;pointer-events:none}
 #printArea{display:none}
