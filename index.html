@@ -55,7 +55,12 @@ button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:5p
 button:hover{border-color:#9aa3b2}
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 button:disabled{opacity:.45;cursor:default}
-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);min-height:0}
+main{display:grid;grid-template-columns:minmax(0,var(--split,43.5%)) 7px minmax(0,1fr);min-height:0}
+#split{cursor:col-resize;background:var(--line);touch-action:none;position:relative;z-index:5}
+#split::after{content:'';position:absolute;left:2px;top:50%;width:3px;height:36px;margin-top:-18px;border-radius:2px;background:#94a3b8}
+#split:hover,#split.drag,#split:focus-visible{background:#93b4f5;outline:none}
+body.splitting{cursor:col-resize;user-select:none}
+body.splitting canvas,body.splitting svg{pointer-events:none}
 .view{position:relative;min-width:0;min-height:0;border-right:1px solid var(--line)}
 #v3d canvas{display:block;width:100%;height:100%}
 #v2d{background:var(--sheet);overflow:hidden}
@@ -218,6 +223,7 @@ dialog.about{text-align:center;max-width:420px;padding:26px 30px}
 }
 @media (max-width:900px){
   main{grid-template-columns:1fr;grid-template-rows:45vh 55vh;overflow:auto}
+  #split{display:none}
   .dlg-body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
   .set-nav{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line)}
   .set-nav button{width:auto;white-space:nowrap}
@@ -2096,6 +2102,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     <div class="dim x" id="dim0"></div><div class="dim y" id="dim1"></div><div class="dim z" id="dim2"></div>
     <div class="legend"><span><i style="border-color:#e11d48"></i><span data-i18n>cut</span></span><span><i style="border-color:#475569"></i><span data-i18n>fold</span></span><span><i style="border-color:#f59e0b"></i><span data-i18n>open edge</span></span></div>
   </section>
+  <div id="split" role="separator" aria-orientation="vertical" tabindex="0" data-i18n-title="Drag to make the 3D view or the pattern larger (double-click: back to the standard)"></div>
   <section class="view" id="v2d">
     <svg id="sheet" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="cap" id="cap2d" data-i18n>Pattern</div>
@@ -2383,6 +2390,7 @@ const NL = {
   'Arrangement': 'Indeling', 'Normal': 'Normaal', 'Fewest pages': 'Zo weinig mogelijk papier', 'Neighbours together': 'Buren bij elkaar',
   'Fewest pages: tries several arrangements and keeps the one with the fewest pages (takes a few seconds). Neighbours together: pieces that are joined in the model lie next to each other, which makes building easier but can take more paper.': 'Zo weinig mogelijk papier: probeert meerdere indelingen en houdt die met de minste pagina’s (duurt een paar seconden). Buren bij elkaar: stukken die in het model aan elkaar vastzitten liggen naast elkaar; dat bouwt makkelijker, maar kan meer papier kosten.',
   'Paper for this color (with Pages per color)': 'Papier voor deze kleur (met Pagina’s per kleur)', 'Paper: standard': 'Papier: standaard',
+  'Drag to make the 3D view or the pattern larger (double-click: back to the standard)': 'Sleep om de 3D-weergave of het patroon groter te maken (dubbelklik: terug naar standaard)',
   'Custom size': 'Eigen formaat', 'Custom size…': 'Eigen formaat…', 'Paper width': 'Papierbreedte', 'Paper height': 'Papierhoogte',
   'Width of the paper in portrait; Landscape swaps width and height.': 'Breedte van het papier staand; bij Liggend worden breedte en hoogte omgewisseld.',
   'Paper width × height in mm (portrait)': 'Papierbreedte × hoogte in mm (staand)',
@@ -4911,7 +4919,37 @@ window.addEventListener('keydown', ev => {
 window.addEventListener('dragover', ev => ev.preventDefault());
 window.addEventListener('drop', ev => { ev.preventDefault(); const f = ev.dataTransfer.files[0]; if (f) openFile(f); });
 window.addEventListener('beforeprint', () => { if (S.cp) fillPrintArea(); });
-new ResizeObserver(() => { if (!S.cp) applyVB(); }).observe(svg);
+// When the pattern view changes size (window, divider), keep the zoom: same mm per pixel, same top left
+let svgSize = null;
+new ResizeObserver(() => {
+  const w = svg.clientWidth, h = svg.clientHeight; if (!w || !h) return;
+  if (svgSize && S.cp) { const k = VB.w / svgSize[0]; VB.w = w * k; VB.h = h * k; }
+  svgSize = [w, h]; applyVB();
+}).observe(svg);
+
+// Divider between the 3D view and the pattern: drag to make one larger (also by touch and with the
+// arrow keys); double-click goes back to the standard. The width is remembered in this browser.
+(() => {
+  const sp = $('split'), main = sp.parentElement, MIN = 15, MAX = 85;
+  const set = pc => { pc = Math.min(MAX, Math.max(MIN, pc)); main.style.setProperty('--split', pc.toFixed(2) + '%'); return pc; };
+  const save = pc => { try { if (pc == null) localStorage.removeItem('papercraft.split'); else localStorage.setItem('papercraft.split', pc.toFixed(2)); } catch (e) {} };
+  try { const v = parseFloat(localStorage.getItem('papercraft.split')); if (v) set(v); } catch (e) {}
+  const cur = () => $('v3d').getBoundingClientRect().width / main.getBoundingClientRect().width * 100;
+  let drag = null;
+  sp.addEventListener('pointerdown', ev => { ev.preventDefault(); drag = { id: ev.pointerId }; sp.setPointerCapture(ev.pointerId); sp.classList.add('drag'); document.body.classList.add('splitting'); });
+  sp.addEventListener('pointermove', ev => {
+    if (!drag || ev.pointerId !== drag.id) return;
+    const r = main.getBoundingClientRect();
+    drag.pc = set((ev.clientX - r.left - 3) / r.width * 100);
+  });
+  const end = ev => { if (!drag || ev.pointerId !== drag.id) return; if (drag.pc != null) save(drag.pc); drag = null; sp.classList.remove('drag'); document.body.classList.remove('splitting'); };
+  sp.addEventListener('pointerup', end); sp.addEventListener('pointercancel', end);
+  sp.addEventListener('dblclick', () => { main.style.removeProperty('--split'); save(null); });
+  sp.addEventListener('keydown', ev => {
+    const d = ev.key === 'ArrowLeft' ? -2 : ev.key === 'ArrowRight' ? 2 : 0; if (!d) return;
+    ev.preventDefault(); save(set(cur() + d));
+  });
+})();
 
 applyStatic();
 buildSide();

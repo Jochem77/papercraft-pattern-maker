@@ -134,7 +134,37 @@ window.addEventListener('keydown', ev => {
 window.addEventListener('dragover', ev => ev.preventDefault());
 window.addEventListener('drop', ev => { ev.preventDefault(); const f = ev.dataTransfer.files[0]; if (f) openFile(f); });
 window.addEventListener('beforeprint', () => { if (S.cp) fillPrintArea(); });
-new ResizeObserver(() => { if (!S.cp) applyVB(); }).observe(svg);
+// When the pattern view changes size (window, divider), keep the zoom: same mm per pixel, same top left
+let svgSize = null;
+new ResizeObserver(() => {
+  const w = svg.clientWidth, h = svg.clientHeight; if (!w || !h) return;
+  if (svgSize && S.cp) { const k = VB.w / svgSize[0]; VB.w = w * k; VB.h = h * k; }
+  svgSize = [w, h]; applyVB();
+}).observe(svg);
+
+// Divider between the 3D view and the pattern: drag to make one larger (also by touch and with the
+// arrow keys); double-click goes back to the standard. The width is remembered in this browser.
+(() => {
+  const sp = $('split'), main = sp.parentElement, MIN = 15, MAX = 85;
+  const set = pc => { pc = Math.min(MAX, Math.max(MIN, pc)); main.style.setProperty('--split', pc.toFixed(2) + '%'); return pc; };
+  const save = pc => { try { if (pc == null) localStorage.removeItem('papercraft.split'); else localStorage.setItem('papercraft.split', pc.toFixed(2)); } catch (e) {} };
+  try { const v = parseFloat(localStorage.getItem('papercraft.split')); if (v) set(v); } catch (e) {}
+  const cur = () => $('v3d').getBoundingClientRect().width / main.getBoundingClientRect().width * 100;
+  let drag = null;
+  sp.addEventListener('pointerdown', ev => { ev.preventDefault(); drag = { id: ev.pointerId }; sp.setPointerCapture(ev.pointerId); sp.classList.add('drag'); document.body.classList.add('splitting'); });
+  sp.addEventListener('pointermove', ev => {
+    if (!drag || ev.pointerId !== drag.id) return;
+    const r = main.getBoundingClientRect();
+    drag.pc = set((ev.clientX - r.left - 3) / r.width * 100);
+  });
+  const end = ev => { if (!drag || ev.pointerId !== drag.id) return; if (drag.pc != null) save(drag.pc); drag = null; sp.classList.remove('drag'); document.body.classList.remove('splitting'); };
+  sp.addEventListener('pointerup', end); sp.addEventListener('pointercancel', end);
+  sp.addEventListener('dblclick', () => { main.style.removeProperty('--split'); save(null); });
+  sp.addEventListener('keydown', ev => {
+    const d = ev.key === 'ArrowLeft' ? -2 : ev.key === 'ArrowRight' ? 2 : 0; if (!d) return;
+    ev.preventDefault(); save(set(cur() + d));
+  });
+})();
 
 applyStatic();
 buildSide();

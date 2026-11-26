@@ -75,6 +75,7 @@ const NL = {
   'Arrangement': 'Indeling', 'Normal': 'Normaal', 'Fewest pages': 'Zo weinig mogelijk papier', 'Neighbours together': 'Buren bij elkaar',
   'Fewest pages: tries several arrangements and keeps the one with the fewest pages (takes a few seconds). Neighbours together: pieces that are joined in the model lie next to each other, which makes building easier but can take more paper.': 'Zo weinig mogelijk papier: probeert meerdere indelingen en houdt die met de minste pagina’s (duurt een paar seconden). Buren bij elkaar: stukken die in het model aan elkaar vastzitten liggen naast elkaar; dat bouwt makkelijker, maar kan meer papier kosten.',
   'Paper for this color (with Pages per color)': 'Papier voor deze kleur (met Pagina’s per kleur)', 'Paper: standard': 'Papier: standaard',
+  'Drag to make the 3D view or the pattern larger (double-click: back to the standard)': 'Sleep om de 3D-weergave of het patroon groter te maken (dubbelklik: terug naar standaard)',
   'Custom size': 'Eigen formaat', 'Custom size…': 'Eigen formaat…', 'Paper width': 'Papierbreedte', 'Paper height': 'Papierhoogte',
   'Width of the paper in portrait; Landscape swaps width and height.': 'Breedte van het papier staand; bij Liggend worden breedte en hoogte omgewisseld.',
   'Paper width × height in mm (portrait)': 'Papierbreedte × hoogte in mm (staand)',

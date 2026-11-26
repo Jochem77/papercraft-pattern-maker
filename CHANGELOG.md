@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Movable divider** between the 3D view and the pattern: drag it (mouse or touch) or use the arrow keys to make one side larger; double-click goes back to the standard. The width is remembered, and the pattern keeps its zoom.
 - **Custom paper size** (*Settings → Paper & layout → Size → Custom size*): enter the width and height of the paper in mm (100–1000, portrait; *Landscape* swaps them). Also per material in the colours panel (*Custom size…*, then width × height). Automatic unfolding makes the pieces fit; the page, the PDF and the plotter SVG get that size, and the file names show it (for example *300x450*).
 - **Pinch to zoom** in the pattern on a touchscreen: two fingers zoom and pan; one finger still pans or moves a piece.
 
