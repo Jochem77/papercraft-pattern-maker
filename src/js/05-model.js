@@ -162,6 +162,10 @@ function rebuildMesh() {
 }
 // Fold type as seen from the printed side
 const foldType = convex => (convex !== !!S.set.printedInside ? 'm' : 'v');
+// A glue tab lies against the back of the partner face, so it bends the same way as that face: a
+// mountain fold at a convex seam, a valley fold at a concave (inward) seam. A flat seam: the tab just
+// slides under the partner; it is marked as mountain fold. (Flaps glued together always point inward.)
+const tabFold = E => foldType(E.flat ? true : E.convex);
 
 async function loadModel(data, name, proj) {
   const m = Core.buildMesh(meshPos(data.pos), S.set.flatDeg);

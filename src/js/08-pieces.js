@@ -125,7 +125,7 @@ function buildDrawings() {
             for (const z of zp) {
               if (!z.poly) { d.cuts.push({ e, a: z.a, b: z.b }); continue; }
               d.tabs.push({ e, f, poly: z.poly, shape: null, bad: false });
-              d.folds.push({ e, a: z.a, b: z.b, type: foldType(true), tab: true });
+              d.folds.push({ e, a: z.a, b: z.b, type: tabFold(E), tab: true });
               const zl = Math.hypot(z.b[0] - z.a[0], z.b[1] - z.a[1]), zx = (z.a[0] + z.b[0]) / 2, zy = (z.a[1] + z.b[1]) / 2;
               const fs = Math.min(st.fontSize, z.h * 0.7, zl * 0.35);
               d.labels.push({ e, x: zx - uy * z.h / 2, y: zy + ux * z.h / 2, ang, fs, col: [255, 255, 255], tab: true });
@@ -134,7 +134,7 @@ function buildDrawings() {
             const t = S.tl.tabs[e];
             d.tabs.push({ e, f, poly: t.poly, shape: null, bad: t.bad });
             if (t.bad) d.bad = true;
-            d.folds.push({ e, a, b, type: foldType(true), tab: true });
+            d.folds.push({ e, a, b, type: tabFold(E), tab: true });
             const fs = Math.min(st.fontSize, t.h * 0.7, l * 0.35);
             d.labels.push({ e, x: mx - uy * t.h / 2, y: my + ux * t.h / 2, ang, fs, col: [255, 255, 255], tab: true });
           } else {
