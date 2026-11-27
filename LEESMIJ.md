@@ -44,6 +44,7 @@ Open **`index.html`** in Chrome, Edge, Firefox of Safari. De eerste keer is inte
    - de opties voor de snijplotter.
 5. **PDF** downloadt het patroon op ware grootte (1:1). Print op **100% / werkelijke grootte** en meet de controlelijn van 50 mm na.
 6. **Snijplotter** geeft een ZIP met één SVG per pagina, in mm. De lagen zijn `print`, `snijden` (gesloten contouren) en `rillen` of `perforeren`.
+   **Ging het snijden mis?** Kies **Bestand → Stukken opnieuw printen…**. Klik op de nummers van de stukken (of op een pagina voor al zijn stukken), of typ ze, bijvoorbeeld *3, 7, 12-15*. Kies het papier (bijvoorbeeld A4, ook als het patroon op A3 staat) en download een PDF of de snijplotterbestanden. De stukken komen op nieuwe pagina’s met dezelfde vorm en dezelfde nummers; de indeling en de nummering van je patroon veranderen niet.
 7. **Opslaan** bewaart het model én al je aanpassingen in één `.papercraft.json`-bestand.
 
 Onder **Help** (F1) staan alle bediening en sneltoetsen.

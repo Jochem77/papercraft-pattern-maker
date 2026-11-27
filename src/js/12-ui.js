@@ -80,7 +80,7 @@ function runCmd(c) {
   const [kind, v] = c.split(':');
   const cmds = {
     open: () => $('fModel').click(), load: () => $('fProj').click(), save: saveProject,
-    pdf: exportPDF, plotter: exportPlotter, settings: () => openSettings(),
+    pdf: exportPDF, plotter: exportPlotter, reprint: openReprint, settings: () => openSettings(),
     undo, redo, rotL: () => rotateSel(-15), rotR: () => rotateSel(15), rot90: () => rotateSel(90), deselect: () => selectPiece(-1, true),
     auto: () => $('bAuto').click(), layout: () => $('bLayout').click(), fixTiny: () => fixTinyColors(1), simplify: openSimplify,
     help: () => $('help').showModal(), fit3, fit2: fitView,

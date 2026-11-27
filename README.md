@@ -38,6 +38,7 @@ Runs entirely in your browser: no installation, no account, and your models neve
 - **Exports**:
   - **PDF** at true size (1:1). Every page has a 50 mm check line so you can verify the print scale.
   - **SVG for cutting plotters**, one file per page, in mm. Layers: *print*, *cut* (one closed outline per piece) and *score* or *perforate*.
+  - **Reprint pieces**: print a few pieces again (for example on A4 after printing on A3) on new pages, with the same shape and the same numbers, without changing the layout of the pattern.
   - **Silhouette Print & Cut**: Type 1 registration marks in the PDF. Their settings are printed on every page, and pieces stay out of the keep-clear zones.
 - **Settings**: model size, A4 or A3, margins, tab width and angle, fonts and more.
 - **Projects**: save the model together with all your edits in one `.papercraft.json` file.

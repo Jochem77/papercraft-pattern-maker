@@ -202,6 +202,15 @@ const NL = {
   'cutter': 'snijplotter',
   'Unfolding automatically replaces your own edits (you can undo this). Continue?': 'Automatisch knippen vervangt je eigen aanpassingen (je kunt dit ongedaan maken). Doorgaan?',
   'Arranging pieces…': 'Stukken indelen…',
+  // stukken opnieuw printen
+  'Reprint pieces…': 'Stukken opnieuw printen…', 'Reprint pieces': 'Stukken opnieuw printen',
+  'Print some pieces again, for example when cutting went wrong, on the same or other paper. The pieces keep their shape and their numbers, and the layout of your pattern stays as it is.': 'Print een paar stukken opnieuw, bijvoorbeeld als het snijden misging, op hetzelfde of ander papier. De stukken houden hun vorm en hun nummers, en de indeling van je patroon blijft zoals hij is.',
+  'Pieces': 'Stukken', 'Clear': 'Wissen', 'Download PDF': 'PDF downloaden', 'Not on a page': 'Niet op een pagina',
+  'Click piece numbers below, or a page to take all its pieces.': 'Klik hieronder op stuknummers, of op een pagina om al zijn stukken te nemen.',
+  'Choose one or more pieces.': 'Kies een of meer stukken.',
+  'Does not fit on this paper: piece {list}': 'Past niet op dit papier: stuk {list}',
+  'Unknown piece numbers: {list}': 'Onbekende stuknummers: {list}',
+  'reprint': 'opnieuw', 'ZIP with {n} SVG {pages} and the PDF': 'ZIP met {n} SVG-{pages} en de PDF',
   'Defaults filled in (the model size stays the same). Click Done to apply them.': 'Standaardwaarden ingevuld (de afmetingen van het model blijven gelijk). Klik op Klaar om ze toe te passen.', 'Loading failed: ': 'Laden mislukt: '
 };
 const fx = n => (Math.round(n * 1000) / 1000).toString();

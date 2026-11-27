@@ -189,6 +189,28 @@ dialog.simp::backdrop{background:rgba(15,23,42,.08)}
 .simp-warn{color:#b45309;font-size:12.5px;min-height:0}
 .simp-warn:empty{display:none}
 .simp-btns{display:flex;gap:8px;margin-top:14px}
+/* ---- stukken opnieuw printen ---- */
+dialog.rp{width:600px;max-width:calc(100vw - 32px);max-height:calc(100vh - 40px)}
+.rp .muted{color:var(--muted);font-size:12.5px}
+.rp-row{display:flex;align-items:center;gap:8px;margin:10px 0 4px}
+.rp-row label{min-width:52px;font-weight:600}
+.rp-row input[type=text]{flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-variant-numeric:tabular-nums}
+.rp-row select{padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.rp-hint{margin:6px 0 4px}
+.rp-warn{color:#b45309;font-size:12.5px}
+.rp-warn:empty{display:none}
+#rpPick{max-height:170px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fafbfc}
+.rp-page{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:3px 0}
+.rp-page + .rp-page{border-top:1px solid #eceef2}
+.rp-pg{font-size:11.5px;padding:2px 8px;min-width:68px;text-align:left;color:var(--muted)}
+.rp-n{min-width:32px;padding:2px 6px;font-size:12px;font-variant-numeric:tabular-nums}
+.rp-n.on,.rp-pg.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#rpInfo{margin-top:8px}
+#rpPrev{display:flex;gap:10px;overflow-x:auto;padding:8px 2px 2px}
+#rpPrev:empty{display:none}
+#rpPrev figure{margin:0;flex:none;text-align:center}
+#rpPrev svg{display:block;height:200px;width:auto;border:1px solid var(--line);box-shadow:0 1px 3px rgba(0,0,0,.08);background:#fff}
+#rpPrev figcaption{font-size:11.5px;color:var(--muted);margin-top:3px}
 dialog.about{text-align:center;max-width:420px;padding:26px 30px}
 .about-logo{width:56px;height:56px;margin:0 auto 8px;color:#2563eb}
 .about h2{margin:0 0 2px}

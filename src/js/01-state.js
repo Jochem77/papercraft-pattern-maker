@@ -31,6 +31,9 @@ const saveSettings = () => { try { localStorage.setItem('papercraft.settings', J
 // A paper is 'A4', 'A3', 'custom' (the custom size in the settings, paperW × paperH) or 'WxH' in mm
 // (a custom size for one material). Sizes are portrait; Landscape swaps width and height.
 // Functions that take "i" accept a page number, a paper name, or nothing (the standard paper).
+// While reprint files are made (see 13-reprint.js) RP = { paper, orient, plan }: every page then has
+// that paper and orientation, whatever the settings or the materials say.
+let RP = null;
 const PAPER_MIN = 100, PAPER_MAX = 1000;
 const clampPaper = v => Math.min(PAPER_MAX, Math.max(PAPER_MIN, Math.round(+v * 10) / 10 || 0));
 const customDims = paper => {
@@ -39,15 +42,17 @@ const customDims = paper => {
   return m ? [clampPaper(m[1]), clampPaper(m[2])] : null;
 };
 const paperWH = paper => customDims(paper) || PAPER[paper] || PAPER.A4; // portrait
-const dimsOf = paper => { let [w, h] = paperWH(paper); if (S.set.orient === 'landscape') [w, h] = [h, w]; return [w, h]; };
+const orientNow = () => (RP ? RP.orient : S.set.orient);
+const dimsOf = paper => { let [w, h] = paperWH(paper); if (orientNow() === 'landscape') [w, h] = [h, w]; return [w, h]; };
 // for people: 'A4' or '300 × 450 mm'; in file names: 'A4' or '300x450'
 const paperName = paper => { const c = customDims(paper); return c ? c[0] + ' × ' + c[1] + ' mm' : paper; };
 const paperTag = paper => { const c = customDims(paper); return c ? c[0] + 'x' + c[1] : paper; };
 const keyPaper = key => (S.set.groupColors && S.colorPaper && S.colorPaper[key]) || S.set.paper;
-const pagePaper = i => typeof i === 'string' ? i : (i != null && S.pageLabels && S.pageLabels[i] != null ? keyPaper(S.pageLabels[i]) : S.set.paper);
+const pagePaper = i => typeof i === 'string' ? i : RP ? RP.paper : (i != null && S.pageLabels && S.pageLabels[i] != null ? keyPaper(S.pageLabels[i]) : S.set.paper);
 const pageDims = i => dimsOf(pagePaper(i));
 // size of a cell in the page grid on screen: the largest paper in use
 const cellDims = () => {
+  if (RP) return dimsOf(RP.paper);
   let [w, h] = dimsOf(S.set.paper);
   if (S.set.groupColors && S.colorPaper) for (const pp of Object.values(S.colorPaper)) { const [a, b] = dimsOf(pp); w = Math.max(w, a); h = Math.max(h, b); }
   return [w, h];

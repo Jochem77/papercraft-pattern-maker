@@ -33,6 +33,7 @@
       <div class="mhead" data-i18n>Export</div>
       <button class="mi" data-cmd="pdf" data-need="model"><span class="ck"></span><span data-i18n>Download PDF (true size)</span><span class="ks">Ctrl+P</span></button>
       <button class="mi" data-cmd="plotter" data-need="model"><span class="ck"></span><span data-i18n>Cutting plotter files (SVG)</span></button>
+      <button class="mi" data-cmd="reprint" data-need="model"><span class="ck"></span><span data-i18n>Reprint pieces…</span></button>
       <div class="msep"></div>
       <button class="mi" data-cmd="settings"><span class="ck"></span><span data-i18n>Settings…</span><span class="ks">Ctrl+,</span></button>
     </div></div>
@@ -192,6 +193,18 @@
   <p id="simpWarn" class="simp-warn"></p>
   <div class="simp-btns"><button id="simpKeep" data-i18n>Use original</button><span style="flex:1"></span><button id="simpCancel" data-i18n>Cancel</button><button id="simpOk" class="primary" data-i18n>Simplify</button></div>
 </dialog>
+<dialog id="rpDlg" class="rp" aria-label="Reprint pieces">
+  <h2 data-i18n>Reprint pieces</h2>
+  <p class="muted" data-i18n>Print some pieces again, for example when cutting went wrong, on the same or other paper. The pieces keep their shape and their numbers, and the layout of your pattern stays as it is.</p>
+  <div class="rp-row"><label for="rpNos" data-i18n>Pieces</label><input type="text" id="rpNos" placeholder="3, 7, 12-15" autocomplete="off" spellcheck="false"><button id="rpClear" data-i18n>Clear</button></div>
+  <div id="rpBad" class="rp-warn"></div>
+  <p class="muted rp-hint" data-i18n>Click piece numbers below, or a page to take all its pieces.</p>
+  <div id="rpPick"></div>
+  <div class="rp-row"><label for="rpPaper" data-i18n>Paper</label><select id="rpPaper"></select><select id="rpOrient" aria-label="Orientation"><option value="portrait" data-i18n>Portrait</option><option value="landscape" data-i18n>Landscape</option></select></div>
+  <div id="rpInfo" class="muted"></div>
+  <div id="rpPrev"></div>
+  <div class="simp-btns"><button id="rpCancel" data-i18n>Cancel</button><span style="flex:1"></span><button id="rpPlotter" data-i18n>Cutting plotter files (SVG)</button><button id="rpPdf" class="primary" data-i18n>Download PDF</button></div>
+</dialog>
 <dialog id="help">
   <div class="l-en">
   <h2>How does it work?</h2>
@@ -230,6 +243,7 @@
   <ul>
     <li><b>PDF</b>: every page is exactly A4/A3 in millimetres (1:1). Print at <i>Actual size / 100%</i> and measure the 50 mm check line in the margin</li>
     <li><b>Cutting plotter (SVG)</b>: a ZIP with one SVG per page in millimetres, the PDF with the same pages (print it together with the SVGs) and the project file. The SVGs have layers <i>print</i> (colors, numbers), <i>cut</i> (closed outlines, red) and <i>score</i> (fold lines, blue) and/or <i>perforate</i> (fold lines, green). In Silhouette Studio, choose the cut settings per line color: red = cut through, green = cut through (it is already dashed), blue = score lightly</li>
+    <li><b>Reprint pieces</b> (menu File): print a few pieces again, for example when cutting went wrong, on the same or other paper (A4 after A3). Click their numbers or type them (<i>3, 7, 12-15</i>). They go on new pages with the same shape and the same numbers; the layout of your pattern does not change</li>
     <li><b>Silhouette Print &amp; Cut</b>: turn on <i>Registration marks (Type 1)</i> in Settings → Cutting plotter, and enter the same length, line thickness and inset in Silhouette Studio (Print &amp; Cut, Type 1). Print the PDF at 100%, open the SVG of the same page in Studio and let the machine read the marks</li>
   </ul>
   </div>
@@ -270,6 +284,7 @@
   <ul>
     <li><b>PDF</b>: elke pagina is precies A4/A3 in millimeters (1:1). Print op <i>Werkelijke grootte / 100%</i> en meet de controlelijn van 50 mm in de marge na</li>
     <li><b>Snijplotter (SVG)</b>: een ZIP met één SVG per pagina in millimeters, de PDF met dezelfde pagina’s (print die samen met de SVG’s) en het projectbestand. De SVG’s hebben lagen <i>print</i> (kleuren, nummers), <i>snijden</i> (gesloten contouren, rood) en <i>rillen</i> (vouwlijnen, blauw) en/of <i>perforeren</i> (vouwlijnen, groen). Kies in Silhouette Studio de snij-instellingen per lijnkleur: rood = doorsnijden, groen = doorsnijden (is al gestippeld), blauw = licht rillen</li>
+    <li><b>Stukken opnieuw printen</b> (menu Bestand): print een paar stukken opnieuw, bijvoorbeeld als het snijden misging, op hetzelfde of ander papier (A4 na A3). Klik op hun nummers of typ ze (<i>3, 7, 12-15</i>). Ze komen op nieuwe pagina’s met dezelfde vorm en dezelfde nummers; de indeling van je patroon verandert niet</li>
     <li><b>Silhouette Print &amp; Cut</b>: zet bij Instellingen → Snijplotter <i>Registratiemarkeringen (Type 1)</i> aan en neem lengte, lijndikte en inzet over in Silhouette Studio (Printen &amp; snijden, Type 1). Print de PDF op 100%, open in Studio de SVG van dezelfde pagina en laat de machine de markeringen lezen</li>
   </ul>
   </div>
